@@ -2,33 +2,61 @@ import { query } from '../index';
 import { Conversation, ConversationMessage, ConversationState } from '../../models';
 import { logger } from '../../utils/logger';
 
-function mapRowToConversation(row: any): Conversation {
+interface ConversationRow {
+  id: string;
+  tenant_id: string;
+  slack_user_id: string;
+  slack_channel_id: string | null;
+  state: string;
+  active_task_id: string | null;
+  pending_proposition_task_id: string | null;
+  pending_follow_up_id: string | null;
+  last_interaction_at: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ConversationMessageRow {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  classified_intent: string | null;
+  confidence: string | null;
+  extracted_data: Record<string, unknown> | null;
+  slack_message_ts: string | null;
+  created_at: Date;
+}
+
+function mapRowToConversation(row: unknown): Conversation {
+  const r = row as ConversationRow;
   return {
-    id: row.id,
-    tenantId: row.tenant_id,
-    slackUserId: row.slack_user_id,
-    slackChannelId: row.slack_channel_id,
-    state: row.state as ConversationState,
-    activeTaskId: row.active_task_id,
-    pendingPropositionTaskId: row.pending_proposition_task_id,
-    pendingFollowUpId: row.pending_follow_up_id,
-    lastInteractionAt: row.last_interaction_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: r.id,
+    tenantId: r.tenant_id,
+    slackUserId: r.slack_user_id,
+    slackChannelId: r.slack_channel_id,
+    state: r.state as ConversationState,
+    activeTaskId: r.active_task_id,
+    pendingPropositionTaskId: r.pending_proposition_task_id,
+    pendingFollowUpId: r.pending_follow_up_id,
+    lastInteractionAt: r.last_interaction_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 
-function mapRowToMessage(row: any): ConversationMessage {
+function mapRowToMessage(row: unknown): ConversationMessage {
+  const r = row as ConversationMessageRow;
   return {
-    id: row.id,
-    conversationId: row.conversation_id,
-    role: row.role,
-    content: row.content,
-    classifiedIntent: row.classified_intent,
-    confidence: row.confidence ? parseFloat(row.confidence) : null,
-    extractedData: row.extracted_data,
-    slackMessageTs: row.slack_message_ts,
-    createdAt: row.created_at,
+    id: r.id,
+    conversationId: r.conversation_id,
+    role: r.role,
+    content: r.content,
+    classifiedIntent: r.classified_intent,
+    confidence: r.confidence ? parseFloat(r.confidence) : null,
+    extractedData: r.extracted_data,
+    slackMessageTs: r.slack_message_ts,
+    createdAt: r.created_at,
   };
 }
 
@@ -182,7 +210,7 @@ export class ConversationsRepository {
   ): Promise<Conversation | null> {
     try {
       const fields: string[] = [];
-      const values: any[] = [];
+      const values: unknown[] = [];
       let paramCounter = 1;
 
       // Always update last_interaction_at when updating

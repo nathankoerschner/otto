@@ -3,7 +3,7 @@
  * Allows for future extensibility to other spreadsheet platforms
  */
 
-import { GSheetTaskRow, GSheetUserMappingRow } from '../../models';
+import { GSheetTaskRow } from '../../models';
 
 export interface ISheetsClient {
   /**
@@ -15,16 +15,6 @@ export interface ISheetsClient {
    * Get all task assignments from the sheet
    */
   getAllTaskAssignments(sheetUrl: string): Promise<GSheetTaskRow[]>;
-
-  /**
-   * Get user mapping by Slack user ID
-   */
-  getUserMapping(sheetUrl: string, slackUserId: string): Promise<GSheetUserMappingRow | null>;
-
-  /**
-   * Get all user mappings
-   */
-  getAllUserMappings(sheetUrl: string): Promise<GSheetUserMappingRow[]>;
 
   /**
    * Verify sheet access

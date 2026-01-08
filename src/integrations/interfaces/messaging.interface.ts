@@ -11,8 +11,16 @@ export interface MessagingUser {
 
 export interface MessagingMessage {
   text: string;
-  blocks?: any[];
+  blocks?: unknown[];
   threadTs?: string;
+}
+
+export interface MessagingEvent {
+  userId: string;
+  channelId: string;
+  text: string;
+  threadTs?: string;
+  messageTs?: string;
 }
 
 export interface IMessagingClient {
@@ -39,7 +47,7 @@ export interface IMessagingClient {
   /**
    * Listen for messages and user interactions
    */
-  onMessage(handler: (event: any) => Promise<void>): void;
+  onMessage(handler: (event: unknown) => Promise<void>): void;
 
   /**
    * Start the messaging client

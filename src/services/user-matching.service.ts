@@ -112,14 +112,7 @@ export class UserMatchingService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*User Matching Failed*\n\nI couldn't find an Asana user that matches *${userName}* (Slack ID: \`${slackUserId}\`).\n\nTo resolve this, please add a mapping to the "User Mapping" tab in your Google Sheet with:\n- Slack User ID: \`${slackUserId}\`\n- Asana User ID: [their Asana user ID]`,
-            },
-          },
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `Google Sheet: <${tenant.gsheetUrl}|Open Sheet>`,
+              text: `*User Matching Failed*\n\nI couldn't find an Asana user that matches *${userName}* (Slack ID: \`${slackUserId}\`).\n\nPlease ensure this user's display name matches between Slack and Asana, or contact support to add a manual mapping.`,
             },
           },
         ],

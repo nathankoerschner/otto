@@ -1,4 +1,3 @@
-// @ts-expect-error - asana v3 SDK doesn't have proper TypeScript types
 import * as Asana from 'asana';
 import crypto from 'crypto';
 import { config } from '../../config';
@@ -38,9 +37,11 @@ export interface AsanaTaskFull {
 }
 
 // Type assertions for asana v3 SDK (no @types available for v3)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const AsanaApi = Asana as any;
 
 export class AsanaClient implements ITaskSystemClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private clients: Map<string, any> = new Map();
 
   /**
@@ -55,6 +56,7 @@ export class AsanaClient implements ITaskSystemClient {
   /**
    * Get client for a specific tenant
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private getClient(tenantId?: string): any {
     if (!tenantId) {
       throw new Error('Tenant ID required for Asana operations');
@@ -109,20 +111,25 @@ export class AsanaClient implements ITaskSystemClient {
       });
       const task = result.data;
 
-      // Process custom fields
+      // Process custom fields (Asana SDK lacks types)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const customFields = task.custom_fields?.map((cf: any) => ({
         name: cf.name || '',
         type: cf.type || '',
         value: cf.display_value || cf.text_value || cf.number_value || null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       })).filter((cf: any) => cf.value !== null) || [];
 
-      // Process projects
+      // Process projects (Asana SDK lacks types)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projects = task.memberships?.map((m: any) => ({
         id: m.project?.gid || '',
         name: m.project?.name || '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       })).filter((p: any) => p.name) || [];
 
-      // Process tags
+      // Process tags (Asana SDK lacks types)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tags = task.tags?.map((t: any) => t.name).filter(Boolean) || [];
 
       return {
@@ -171,8 +178,9 @@ export class AsanaClient implements ITaskSystemClient {
       const body = { data: { assignee: userId } };
       await tasksApi.updateTask(body, taskId, {});
       logger.info('Task reassigned in Asana', { taskId, userId, tenantId });
-    } catch (error: any) {
-      const errorDetails = error?.response?.body || error?.message || error;
+    } catch (error: unknown) {
+      const err = error as { response?: { body?: unknown }; message?: string };
+      const errorDetails = err?.response?.body || err?.message || error;
       logger.error('Failed to reassign Asana task', { error: errorDetails, taskId, userId, tenantId });
       throw error;
     }
@@ -268,6 +276,7 @@ export class AsanaClient implements ITaskSystemClient {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logger.debug('No Asana user found by name', { searchName: name, availableUsers: users.map((u: any) => u.name) });
       return null;
     } catch (error) {

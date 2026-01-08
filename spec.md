@@ -56,19 +56,11 @@ Tenant provides their own Google Sheet. Required columns:
 
 Optional columns detected dynamically. Rows are manually entered by tenant.
 
-### User Mapping Sheet (Tab)
-For resolving identity mismatches between Slack and Asana:
-- **Slack User ID**: Slack's internal user ID
-- **Asana User ID**: Asana's internal user ID
-
-This tab is used when automatic name matching fails.
-
 ## User Identity Matching
 
 1. Attempt to match user by display name between Slack and Asana
 2. If no match found: **fail and alert tenant admin**
-3. Admin adds mapping to User Mapping sheet tab
-4. Bot retries with explicit mapping
+3. Admin manually resolves the mismatch
 
 **Strict matching only** - no fuzzy matching, no guessing.
 

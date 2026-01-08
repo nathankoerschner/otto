@@ -6,7 +6,7 @@ Kill all Otto and ngrok processes:
 
 ```bash
 pkill -9 -f "tsx watch"
-pkill -9 -f "npm run dev"
+pkill -9 -f "bun dev"
 pkill -9 -f ngrok
 ```
 
@@ -44,9 +44,38 @@ Kill all related processes and verify:
 
 ```bash
 pkill -9 -f "tsx watch"
-pkill -9 -f "npm run dev"
+pkill -9 -f "bun dev"
 pkill -9 -f ngrok
 sleep 1
 pgrep -f "otto|ngrok" && echo "WARNING: Some processes still running" || echo "All stopped"
 lsof -i :3002 && echo "WARNING: Port 3002 still in use" || echo "Port 3002 is free"
+```
+
+## Clear Database on Shutdown
+
+When shutting down for a clean restart, clear task-related data while preserving tenant configuration:
+
+```bash
+PGPASSWORD=postgres psql -h localhost -U postgres -d otto -c "
+TRUNCATE conversation_messages, conversations, follow_ups, tasks CASCADE;
+"
+```
+
+## Full Shutdown with DB Clear (Recommended)
+
+```bash
+# Kill processes
+pkill -9 -f "tsx watch"
+pkill -9 -f "bun dev"
+pkill -9 -f ngrok
+
+# Clear database
+PGPASSWORD=postgres psql -h localhost -U postgres -d otto -c "
+TRUNCATE conversation_messages, conversations, follow_ups, tasks CASCADE;
+"
+
+# Verify
+sleep 1
+pgrep -f "otto|ngrok" && echo "WARNING: Some processes still running" || echo "All stopped"
+echo "Database cleared, ready for clean restart"
 ```

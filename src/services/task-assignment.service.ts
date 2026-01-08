@@ -1,7 +1,8 @@
 import { logger } from '../utils/logger';
-import { TaskStatus } from '../models';
+import { TaskStatus, Tenant } from '../models';
 import { SlackBot } from '../integrations/slack';
 import { AsanaClient } from '../integrations/asana';
+import { TaskSystemTask } from '../integrations/interfaces/task-system.interface';
 import { GoogleSheetsClient } from '../integrations/sheets';
 import { TasksRepository } from '../db/repositories';
 import { TenantManagerService } from './tenant-manager.service';
@@ -9,6 +10,7 @@ import { UserMatchingService } from './user-matching.service';
 import { FollowUpService } from './follow-up.service';
 import { ConversationContextService } from './conversation-context.service';
 import { config } from '../config';
+import { ClaimTaskOutcome, DeclineTaskOutcome } from '../types/nlp.types';
 
 /**
  * Service for handling task assignment flow
@@ -166,8 +168,9 @@ export class TaskAssignmentService {
 
   /**
    * Handle task claim by a user
+   * Returns structured outcome for AI response generation
    */
-  async claimTask(taskId: string, slackUserId: string, tenantId: string): Promise<boolean> {
+  async claimTask(taskId: string, slackUserId: string, tenantId: string): Promise<ClaimTaskOutcome> {
     try {
       logger.info('=== CLAIM TASK START ===', { taskId, slackUserId, tenantId });
 
@@ -176,7 +179,7 @@ export class TaskAssignmentService {
       const task = await this.tasksRepo.findById(taskId);
       if (!task) {
         logger.error('CLAIM FAILED: Task not found in database', { taskId });
-        return false;
+        return { action: 'claim_task', success: false, failureReason: 'task_not_found' };
       }
       logger.debug('Step 1 SUCCESS: Task found', { taskId, status: task.status, asanaTaskId: task.asanaTaskId });
 
@@ -186,21 +189,22 @@ export class TaskAssignmentService {
         // If the same user is trying to claim again (double-click), return success (idempotent)
         if (task.ownerSlackUserId === slackUserId) {
           logger.info('Task already claimed by same user, returning success (idempotent)', { taskId, slackUserId });
-          return true;
+          return { action: 'claim_task', success: true };
         }
 
         logger.warn('CLAIM FAILED: Task already claimed by another user', { taskId, currentOwner: task.ownerSlackUserId });
 
-        // Send message to user who tried to claim
+        // Get the name of who claimed it for the AI response
         const ownerUser = task.ownerSlackUserId
           ? await this.slackBot.getUserById(task.ownerSlackUserId, tenantId)
           : null;
 
-        await this.slackBot.sendDirectMessage(slackUserId, {
-          text: `Sorry, this task was already claimed by ${ownerUser?.name || 'someone else'}`,
-        }, tenantId);
-
-        return false;
+        return {
+          action: 'claim_task',
+          success: false,
+          failureReason: 'already_claimed',
+          claimedByName: ownerUser?.name || 'someone else'
+        };
       }
       logger.debug('Step 2 SUCCESS: Task not yet claimed');
 
@@ -209,7 +213,7 @@ export class TaskAssignmentService {
       const tenant = this.tenantManager.getTenant(tenantId);
       if (!tenant) {
         logger.error('CLAIM FAILED: Tenant not found', { tenantId });
-        return false;
+        return { action: 'claim_task', success: false, failureReason: 'error' };
       }
       logger.debug('Step 3 SUCCESS: Tenant found', { tenantName: tenant.name });
 
@@ -230,11 +234,7 @@ export class TaskAssignmentService {
           slackUserId
         );
 
-        await this.slackBot.sendDirectMessage(slackUserId, {
-          text: "I couldn't find your Asana account. The admin has been notified to add a manual mapping.",
-        }, tenantId);
-
-        return false;
+        return { action: 'claim_task', success: false, failureReason: 'asana_match_failed' };
       }
       logger.debug('Step 4 SUCCESS: User matched to Asana', { slackUserId, asanaUserId });
 
@@ -270,14 +270,8 @@ export class TaskAssignmentService {
         logger.debug('Step 8 SUCCESS: Follow-ups scheduled', { taskId });
       }
 
-      // 9. Confirm to user
-      logger.debug('Step 9: Sending confirmation to user');
-      await this.slackBot.sendDirectMessage(slackUserId, {
-        text: `Great! The task has been assigned to you in Asana. I'll check in with you as the due date approaches.`,
-      }, tenantId);
-
       logger.info('=== CLAIM TASK COMPLETE SUCCESS ===', { taskId, slackUserId, asanaUserId });
-      return true;
+      return { action: 'claim_task', success: true };
     } catch (error) {
       logger.error('=== CLAIM TASK FAILED WITH EXCEPTION ===', {
         error: error instanceof Error ? error.message : String(error),
@@ -286,33 +280,34 @@ export class TaskAssignmentService {
         slackUserId,
         tenantId
       });
-      return false;
+      return { action: 'claim_task', success: false, failureReason: 'error' };
     }
   }
 
   /**
    * Handle task decline
+   * Returns structured outcome for AI response generation
    */
-  async declineTask(taskId: string, slackUserId: string, tenantId: string, reason?: string): Promise<void> {
+  async declineTask(taskId: string, slackUserId: string, tenantId: string, reason?: string): Promise<DeclineTaskOutcome> {
     try {
       logger.info('User declining task', { taskId, slackUserId, tenantId, reason });
 
       const task = await this.tasksRepo.findById(taskId);
       if (!task) {
         logger.error('Task not found', { taskId });
-        return;
+        return { action: 'decline_task', success: false, failureReason: 'task_not_found' };
       }
 
       const tenant = this.tenantManager.getTenant(tenantId);
       if (!tenant) {
         logger.error('Tenant not found', { tenantId });
-        return;
+        return { action: 'decline_task', success: false, failureReason: 'error' };
       }
 
       // Get task details
       const asanaTask = await this.asanaClient.getTask(task.asanaTaskId, tenantId);
 
-      // Escalate to admin
+      // Escalate to admin - AI will handle the user-facing response
       await this.escalateToAdmin(
         taskId,
         tenant,
@@ -320,12 +315,10 @@ export class TaskAssignmentService {
         `User ${slackUserId} declined the task${reason ? `: ${reason}` : ''}`
       );
 
-      // Acknowledge to user
-      await this.slackBot.sendDirectMessage(slackUserId, {
-        text: "Thanks for letting me know. I've alerted the admin to find someone else for this task.",
-      }, tenantId);
+      return { action: 'decline_task', success: true };
     } catch (error) {
       logger.error('Error declining task', { error, taskId, slackUserId, tenantId });
+      return { action: 'decline_task', success: false, failureReason: 'error' };
     }
   }
 
@@ -398,8 +391,8 @@ export class TaskAssignmentService {
    */
   private async escalateToAdmin(
     taskId: string,
-    tenant: any,
-    asanaTask: any,
+    tenant: Tenant,
+    asanaTask: TaskSystemTask,
     reason: string
   ): Promise<void> {
     try {
@@ -430,7 +423,7 @@ export class TaskAssignmentService {
   /**
    * Helper: Schedule escalation timeout
    */
-  private scheduleEscalation(taskId: string, _tenant: any): void {
+  private scheduleEscalation(taskId: string, _tenant: Tenant): void {
     const timeoutMs = config.bot.claimTimeoutHours * 60 * 60 * 1000;
 
     setTimeout(async () => {

@@ -2,20 +2,35 @@ import { query } from '../index';
 import { Tenant } from '../../models';
 import { logger } from '../../utils/logger';
 
+interface TenantRow {
+  id: string;
+  name: string;
+  slack_workspace_id: string;
+  slack_bot_token_secret_name: string;
+  asana_workspace_id: string;
+  asana_bot_user_id: string;
+  asana_api_token_secret_name: string;
+  gsheet_url: string;
+  admin_slack_user_id: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 // Map database row (snake_case) to Tenant model (camelCase)
-function mapRowToTenant(row: any): Tenant {
+function mapRowToTenant(row: unknown): Tenant {
+  const r = row as TenantRow;
   return {
-    id: row.id,
-    name: row.name,
-    slackWorkspaceId: row.slack_workspace_id,
-    slackBotTokenSecretName: row.slack_bot_token_secret_name,
-    asanaWorkspaceId: row.asana_workspace_id,
-    asanaBotUserId: row.asana_bot_user_id,
-    asanaApiTokenSecretName: row.asana_api_token_secret_name,
-    gsheetUrl: row.gsheet_url,
-    adminSlackUserId: row.admin_slack_user_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: r.id,
+    name: r.name,
+    slackWorkspaceId: r.slack_workspace_id,
+    slackBotTokenSecretName: r.slack_bot_token_secret_name,
+    asanaWorkspaceId: r.asana_workspace_id,
+    asanaBotUserId: r.asana_bot_user_id,
+    asanaApiTokenSecretName: r.asana_api_token_secret_name,
+    gsheetUrl: r.gsheet_url,
+    adminSlackUserId: r.admin_slack_user_id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 
@@ -117,7 +132,7 @@ export class TenantsRepository {
   }): Promise<Tenant | null> {
     try {
       const fields: string[] = [];
-      const values: any[] = [];
+      const values: unknown[] = [];
       let paramCounter = 1;
 
       Object.entries(updates).forEach(([key, value]) => {

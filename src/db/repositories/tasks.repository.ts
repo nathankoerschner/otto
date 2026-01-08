@@ -1,23 +1,39 @@
 import { query } from '../index';
-import { Task, TaskStatus, TaskLLMContext } from '../../models';
+import { Task, TaskStatus } from '../../models';
 import { logger } from '../../utils/logger';
 
-function mapRowToTask(row: any): Task {
+interface TaskRow {
+  id: string;
+  tenant_id: string;
+  asana_task_id: string;
+  asana_task_url: string;
+  status: TaskStatus;
+  owner_slack_user_id: string | null;
+  owner_asana_user_id: string | null;
+  due_date: Date | null;
+  claimed_at: Date | null;
+  proposition_message_ts: string | null;
+  proposition_sent_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+function mapRowToTask(row: unknown): Task {
+  const r = row as TaskRow;
   return {
-    id: row.id,
-    tenantId: row.tenant_id,
-    asanaTaskId: row.asana_task_id,
-    asanaTaskUrl: row.asana_task_url,
-    status: row.status,
-    ownerSlackUserId: row.owner_slack_user_id,
-    ownerAsanaUserId: row.owner_asana_user_id,
-    dueDate: row.due_date,
-    claimedAt: row.claimed_at,
-    propositionMessageTs: row.proposition_message_ts,
-    propositionSentAt: row.proposition_sent_at,
-    context: row.context,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: r.id,
+    tenantId: r.tenant_id,
+    asanaTaskId: r.asana_task_id,
+    asanaTaskUrl: r.asana_task_url,
+    status: r.status,
+    ownerSlackUserId: r.owner_slack_user_id,
+    ownerAsanaUserId: r.owner_asana_user_id,
+    dueDate: r.due_date,
+    claimedAt: r.claimed_at,
+    propositionMessageTs: r.proposition_message_ts,
+    propositionSentAt: r.proposition_sent_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 
@@ -64,7 +80,7 @@ export class TasksRepository {
   async findByTenantId(tenantId: string, status?: TaskStatus): Promise<Task[]> {
     try {
       let queryText = 'SELECT * FROM tasks WHERE tenant_id = $1';
-      const params: any[] = [tenantId];
+      const params: unknown[] = [tenantId];
 
       if (status) {
         queryText += ' AND status = $2';
@@ -165,7 +181,7 @@ export class TasksRepository {
   }): Promise<Task | null> {
     try {
       const fields: string[] = [];
-      const values: any[] = [];
+      const values: unknown[] = [];
       let paramCounter = 1;
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -214,22 +230,6 @@ export class TasksRepository {
       return (result.rowCount || 0) > 0;
     } catch (error) {
       logger.error('Failed to delete task', { error, id });
-      throw error;
-    }
-  }
-
-  /**
-   * Update the LLM context for a task
-   */
-  async updateContext(id: string, context: TaskLLMContext): Promise<Task | null> {
-    try {
-      const result = await query(
-        'UPDATE tasks SET context = $1 WHERE id = $2 RETURNING *',
-        [JSON.stringify(context), id]
-      );
-      return result.rows[0] ? mapRowToTask(result.rows[0]) : null;
-    } catch (error) {
-      logger.error('Failed to update task context', { error, id });
       throw error;
     }
   }

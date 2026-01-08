@@ -198,11 +198,6 @@ Tenants provide their own Google Sheet with the following structure:
 |----------|----------|
 | https://app.asana.com/0/123/456 | John Doe |
 
-**User Mapping Sheet (optional tab):**
-| Slack User ID | Asana User ID |
-|---------------|---------------|
-| U123ABC | 987654321 |
-
 ## Deployment
 
 See [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) for detailed deployment instructions.

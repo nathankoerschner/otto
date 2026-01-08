@@ -1,6 +1,5 @@
 import { SayFn } from '@slack/bolt';
 import { ILLMService } from '../integrations/llm';
-import { formatAsanaTaskForLLM } from '../integrations/llm/prompts';
 import { ConversationContextService } from '../services/conversation-context.service';
 import { TaskAssignmentService } from '../services/task-assignment.service';
 import { FollowUpService } from '../services/follow-up.service';
@@ -105,16 +104,8 @@ export class NLPMessageHandler {
         thread_ts: message.threadTs,
       });
 
-      // 9. Save updated task context if we have one
-      if (taskContext && response.updatedTaskContext) {
-        await this.tasksRepo.updateContext(taskContext.task.id, response.updatedTaskContext);
-        logger.debug('Updated task context', {
-          taskId: taskContext.task.id,
-          keyPointsCount: response.updatedTaskContext.keyPoints.length,
-        });
-      }
 
-      // 10. Update conversation context with assistant response
+      // 9. Update conversation context with assistant response
       await this.contextService.addMessage(
         context.conversation.id,
         'assistant',
@@ -124,7 +115,7 @@ export class NLPMessageHandler {
         intent.extractedData
       );
 
-      // 11. Update conversation state based on intent
+      // 10. Update conversation state based on intent
       await this.updateConversationState(context, intent.intent, taskContext);
 
     } catch (error) {
@@ -144,19 +135,28 @@ export class NLPMessageHandler {
     }
   }
 
-  private shouldUseTaskDetailsFallback(
-    intent: IntentClassification,
-    taskContext: TaskContext | null
-  ): boolean {
-    if (!taskContext) {
-      return false;
+  /**
+   * Get task context for the message
+   */
+  private async getTaskContext(
+    message: IncomingMessage,
+    _context: ConversationContext
+  ): Promise<TaskContext | null> {
+    // First, try to correlate from conversation context
+    const correlatedTask = await this.contextService.correlateMessageToTask(
+      message.userId,
+      message.tenantId,
+      message.text
+    );
+
+    if (!correlatedTask) {
+      return null;
     }
 
-    return (
-      (intent.intent === MessageIntent.ASK_QUESTION ||
-        intent.intent === MessageIntent.REQUEST_MORE_INFO) &&
-      !taskContext.formattedAsanaData
-    );
+    // Get enriched task context
+    const taskContext = await this.contextService.getTaskContext(correlatedTask.id);
+
+    return taskContext;
   }
 
   /**
@@ -177,26 +177,24 @@ export class NLPMessageHandler {
     try {
       switch (intent.intent) {
         case MessageIntent.ACCEPT_TASK: {
-          const success = await this.taskAssignmentService.claimTask(
+          const outcome = await this.taskAssignmentService.claimTask(
             taskId,
             message.userId,
             message.tenantId
           );
-          const outcome: ActionOutcome = { action: 'claim_task', success };
-          logger.info('Task claim attempted via NLP', { taskId, userId: message.userId, success });
+          logger.info('Task claim attempted via NLP', { taskId, userId: message.userId, outcome });
           return outcome;
         }
 
         case MessageIntent.DECLINE_TASK: {
           const reason = intent.extractedData?.reason as string | undefined;
-          await this.taskAssignmentService.declineTask(
+          const outcome = await this.taskAssignmentService.declineTask(
             taskId,
             message.userId,
             message.tenantId,
             reason
           );
-          const outcome: ActionOutcome = { action: 'decline_task', success: true };
-          logger.info('Task decline attempted via NLP', { taskId, userId: message.userId, reason });
+          logger.info('Task decline attempted via NLP', { taskId, userId: message.userId, reason, outcome });
           return outcome;
         }
 
@@ -234,57 +232,21 @@ export class NLPMessageHandler {
     }
   }
 
-  /**
-   * Get task context for the message
-   */
-  private async getTaskContext(
-    message: IncomingMessage,
-    _context: ConversationContext
-  ): Promise<TaskContext | null> {
-    // First, try to correlate from conversation context
-    const correlatedTask = await this.contextService.correlateMessageToTask(
-      message.userId,
-      message.tenantId,
-      message.text
+  private shouldUseTaskDetailsFallback(
+    intent: IntentClassification,
+    taskContext: TaskContext | null
+  ): boolean {
+    if (!taskContext) {
+      return false;
+    }
+
+    return (
+      (intent.intent === MessageIntent.ASK_QUESTION ||
+        intent.intent === MessageIntent.REQUEST_MORE_INFO) &&
+      !taskContext.formattedAsanaData
     );
-
-    if (!correlatedTask) {
-      return null;
-    }
-
-    // Get enriched task context
-    const taskContext = await this.contextService.getTaskContext(correlatedTask.id);
-
-    if (taskContext) {
-      // Fetch FULL task data from Asana (on-demand, fresh data)
-      try {
-        const fullAsanaTask = await this.asanaClient.getTaskFull(
-          correlatedTask.asanaTaskId,
-          message.tenantId
-        );
-        if (fullAsanaTask) {
-          taskContext.asanaTaskName = fullAsanaTask.name || '';
-          taskContext.asanaTaskDescription = fullAsanaTask.description || '';
-          taskContext.asanaTaskUrl = fullAsanaTask.url || '';
-          // Format the full task data for LLM context
-          taskContext.formattedAsanaData = formatAsanaTaskForLLM(fullAsanaTask);
-
-          logger.debug('Fetched full Asana task for LLM context', {
-            taskId: correlatedTask.asanaTaskId,
-            hasDescription: !!fullAsanaTask.description,
-            customFieldCount: fullAsanaTask.customFields?.length || 0,
-          });
-        }
-      } catch (error) {
-        logger.warn('Failed to fetch full Asana task details', {
-          error,
-          taskId: correlatedTask.asanaTaskId,
-        });
-      }
-    }
-
-    return taskContext;
   }
+
 
   /**
    * Handle low confidence classifications by asking for clarification

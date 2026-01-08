@@ -90,11 +90,6 @@ export interface GSheetTaskRow {
   [key: string]: string;
 }
 
-export interface GSheetUserMappingRow {
-  slackUserId: string;
-  asanaUserId: string;
-}
-
 // Conversation state for NLP context tracking
 export enum ConversationState {
   IDLE = 'idle',

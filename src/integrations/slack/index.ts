@@ -1,4 +1,4 @@
-import { App, LogLevel } from '@slack/bolt';
+import { App, LogLevel, Block, KnownBlock } from '@slack/bolt';
 import { WebClient } from '@slack/web-api';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
@@ -49,7 +49,7 @@ export class SlackBot implements IMessagingClient {
       const result = await client.chat.postMessage({
         channel: userId,
         text: message.text,
-        blocks: message.blocks,
+        blocks: message.blocks as (Block | KnownBlock)[],
         thread_ts: message.threadTs,
       });
 
@@ -67,7 +67,7 @@ export class SlackBot implements IMessagingClient {
       const result = await client.chat.postMessage({
         channel: channelId,
         text: message.text,
-        blocks: message.blocks,
+        blocks: message.blocks as (Block | KnownBlock)[],
         thread_ts: message.threadTs,
       });
 
@@ -130,7 +130,7 @@ export class SlackBot implements IMessagingClient {
     }
   }
 
-  onMessage(handler: (event: any) => Promise<void>): void {
+  onMessage(handler: (event: unknown) => Promise<void>): void {
     this.app.message(async (args) => {
       try {
         await handler(args);
@@ -144,10 +144,10 @@ export class SlackBot implements IMessagingClient {
     // Log all incoming events for debugging
     this.app.use(async (args) => {
       const { payload, next } = args;
-      const event = (args as any).event;
+      const event = (args as { event?: { type?: string; subtype?: string } }).event;
       logger.info('Slack event received', {
         type: payload?.type || event?.type || 'unknown',
-        subtype: (payload as any)?.subtype || event?.subtype,
+        subtype: (payload as { subtype?: string })?.subtype || event?.subtype,
       });
       await next();
     });

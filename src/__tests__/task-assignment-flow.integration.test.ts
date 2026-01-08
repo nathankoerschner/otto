@@ -417,7 +417,8 @@ describe('Task Assignment Flow Integration', () => {
         testTenant.id
       );
 
-      expect(result).toBe(true);
+      // claimTask now returns structured outcome for AI response generation
+      expect(result).toEqual({ action: 'claim_task', success: true });
       expect(mockAsanaClient.reassignTask).toHaveBeenCalledWith(
         testAsanaTask.id,
         'asana-bob-123',
@@ -455,7 +456,7 @@ describe('Task Assignment Flow Integration', () => {
       );
     });
 
-    it('should send confirmation message to user', async () => {
+    it('should not send hardcoded confirmation (AI handles user response)', async () => {
       await taskAssignmentService.seekOwnership(testAsanaTask.id, testTenant.id);
       const createdTask = Array.from(tasksStorage.values())[0];
       (mockSlackBot as any).getUserById = jest.fn().mockResolvedValue(testSlackUser);
@@ -465,14 +466,8 @@ describe('Task Assignment Flow Integration', () => {
 
       await taskAssignmentService.claimTask(createdTask.id, testSlackUser.id, testTenant.id);
 
-      // Should send confirmation
-      expect(mockSlackBot.sendDirectMessage).toHaveBeenCalledWith(
-        testSlackUser.id,
-        expect.objectContaining({
-          text: expect.stringContaining('assigned to you'),
-        }),
-        testTenant.id
-      );
+      // Service should NOT send hardcoded confirmation - AI handles user-facing response
+      expect(mockSlackBot.sendDirectMessage).not.toHaveBeenCalled();
     });
   });
 
@@ -500,7 +495,7 @@ describe('Task Assignment Flow Integration', () => {
       );
     });
 
-    it('should acknowledge decline to user', async () => {
+    it('should not send hardcoded acknowledgment to user (AI handles response)', async () => {
       await taskAssignmentService.seekOwnership(testAsanaTask.id, testTenant.id);
       const createdTask = Array.from(tasksStorage.values())[0];
 
@@ -512,11 +507,13 @@ describe('Task Assignment Flow Integration', () => {
         testTenant.id
       );
 
-      // User should receive acknowledgment
+      // Service should only send escalation to admin, NOT hardcoded acknowledgment to user
+      // AI handles user-facing response based on the outcome
+      expect(mockSlackBot.sendDirectMessage).toHaveBeenCalledTimes(1);
       expect(mockSlackBot.sendDirectMessage).toHaveBeenCalledWith(
-        testSlackUser.id,
+        testTenant.adminSlackUserId,
         expect.objectContaining({
-          text: expect.stringContaining('Thanks for letting me know'),
+          text: expect.stringContaining('escalation'),
         }),
         testTenant.id
       );

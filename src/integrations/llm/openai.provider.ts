@@ -5,6 +5,7 @@ import {
   IntentClassification,
   GeneratedResponse,
   LLMConfig,
+  ActionOutcome,
 } from '../../types/nlp.types';
 
 /**
@@ -42,7 +43,8 @@ export class OpenAIProvider extends BaseLLMProvider {
     _intent: IntentClassification,
     _userMessage: string,
     _context: ConversationContext,
-    _taskContext?: TaskContext
+    _taskContext?: TaskContext,
+    _actionOutcome?: ActionOutcome
   ): Promise<GeneratedResponse> {
     // TODO: Implement OpenAI-based response generation
     // Use the same prompts from prompts.ts

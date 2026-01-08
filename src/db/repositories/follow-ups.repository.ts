@@ -2,19 +2,34 @@ import { query } from '../index';
 import { FollowUp, FollowUpType } from '../../models';
 import { logger } from '../../utils/logger';
 
-function mapRowToFollowUp(row: any): FollowUp {
+interface FollowUpRow {
+  id: string;
+  task_id: string;
+  type: string;
+  scheduled_at: Date;
+  sent_at: Date | null;
+  response_received: boolean;
+  response_text: string | null;
+  response_intent: string | null;
+  response_data: Record<string, unknown> | null;
+  response_at: Date | null;
+  created_at: Date;
+}
+
+function mapRowToFollowUp(row: unknown): FollowUp {
+  const r = row as FollowUpRow;
   return {
-    id: row.id,
-    taskId: row.task_id,
-    type: row.type as FollowUpType,
-    scheduledAt: row.scheduled_at,
-    sentAt: row.sent_at,
-    responseReceived: row.response_received,
-    responseText: row.response_text,
-    responseIntent: row.response_intent,
-    responseData: row.response_data,
-    responseAt: row.response_at,
-    createdAt: row.created_at,
+    id: r.id,
+    taskId: r.task_id,
+    type: r.type as FollowUpType,
+    scheduledAt: r.scheduled_at,
+    sentAt: r.sent_at,
+    responseReceived: r.response_received,
+    responseText: r.response_text,
+    responseIntent: r.response_intent,
+    responseData: r.response_data,
+    responseAt: r.response_at,
+    createdAt: r.created_at,
   };
 }
 

@@ -11,19 +11,39 @@
 
 ### 1. Start ngrok (for Asana webhooks)
 
+If using a reserved domain:
+```bash
+ngrok http 3002 --domain=entangleable-jess-dovetailed.ngrok-free.dev &
+```
+
+Or for a random URL:
 ```bash
 ngrok http 3002 &
 ```
 
-Get the public URL:
+### 2. Verify ngrok is working
+
 ```bash
-curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*"' | head -1
+# Wait for ngrok to start
+sleep 3
+
+# Check tunnel is active
+curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*"'
+
+# Verify external connectivity (get the URL first)
+NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"https://[^"]*"' | cut -d'"' -f4)
+echo "ngrok URL: $NGROK_URL"
+
+# Check ngrok status
+curl -s http://localhost:4040/api/status | grep -o '"status":"[^"]*"'
 ```
 
-### 2. Start Otto
+If ngrok shows online but external requests fail, it may be a local TLS issue - the tunnel still works for external services like Asana.
+
+### 3. Start Otto
 
 ```bash
-npm run dev
+bun dev
 ```
 
 ### 3. Verify Running
@@ -61,21 +81,24 @@ done
 
 ```bash
 # 1. Ensure clean state (kill any existing processes)
-pkill -9 -f otto 2>/dev/null
+pkill -9 -f "tsx watch" 2>/dev/null
 pkill -9 -f ngrok 2>/dev/null
 sleep 1
 
-# 2. Reset database (optional - for clean testing)
+# 2. Reset database (for clean testing)
 PGPASSWORD=postgres psql -h localhost -U postgres -d otto -c "
 TRUNCATE conversation_messages, conversations, follow_ups, tasks CASCADE;
 "
 
-# 3. Start ngrok
-ngrok http 3002 > /tmp/ngrok.log 2>&1 &
+# 3. Start ngrok with reserved domain
+ngrok http 3002 --domain=entangleable-jess-dovetailed.ngrok-free.dev > /tmp/ngrok.log 2>&1 &
 sleep 3
 
-# 4. Start Otto
-npm run dev
+# 4. Verify ngrok is working
+curl -s http://localhost:4040/api/status | grep -q '"status":"online"' && echo "ngrok: OK" || echo "ngrok: FAILED"
+
+# 5. Start Otto
+bun dev
 ```
 
 ## Asana Webhook Registration

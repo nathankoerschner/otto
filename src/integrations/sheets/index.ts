@@ -3,7 +3,7 @@ import { JWT } from 'google-auth-library';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
 import { ISheetsClient } from '../interfaces/sheets.interface';
-import { GSheetTaskRow, GSheetUserMappingRow } from '../../models';
+import { GSheetTaskRow } from '../../models';
 
 export class GoogleSheetsClient implements ISheetsClient {
   private sheets: Map<string, GoogleSpreadsheet> = new Map();
@@ -143,82 +143,6 @@ export class GoogleSheetsClient implements ISheetsClient {
       return results;
     } catch (error) {
       logger.error('Failed to get all task assignments', { error, sheetUrl });
-      throw error;
-    }
-  }
-
-  async getUserMapping(sheetUrl: string, slackUserId: string): Promise<GSheetUserMappingRow | null> {
-    try {
-      const doc = await this.getSheet(sheetUrl);
-
-      // Look for "User Mapping" or similar sheet
-      const mappingSheet = doc.sheetsByTitle['User Mapping'] ||
-                          doc.sheetsByTitle['User Mappings'] ||
-                          doc.sheetsByTitle['user_mapping'];
-
-      if (!mappingSheet) {
-        logger.warn('No user mapping sheet found', { sheetUrl });
-        return null;
-      }
-
-      await mappingSheet.loadHeaderRow();
-      const rows = await mappingSheet.getRows();
-
-      for (const row of rows) {
-        const slackId = row.get('Slack User ID') || row.get('slackUserId') || row.get('slack_user_id');
-
-        if (slackId && slackId.trim() === slackUserId.trim()) {
-          const asanaId = row.get('Asana User ID') || row.get('asanaUserId') || row.get('asana_user_id');
-
-          if (!asanaId) {
-            continue;
-          }
-
-          return {
-            slackUserId: slackId,
-            asanaUserId: asanaId,
-          };
-        }
-      }
-
-      return null;
-    } catch (error) {
-      logger.error('Failed to get user mapping', { error, sheetUrl, slackUserId });
-      throw error;
-    }
-  }
-
-  async getAllUserMappings(sheetUrl: string): Promise<GSheetUserMappingRow[]> {
-    try {
-      const doc = await this.getSheet(sheetUrl);
-
-      const mappingSheet = doc.sheetsByTitle['User Mapping'] ||
-                          doc.sheetsByTitle['User Mappings'] ||
-                          doc.sheetsByTitle['user_mapping'];
-
-      if (!mappingSheet) {
-        return [];
-      }
-
-      await mappingSheet.loadHeaderRow();
-      const rows = await mappingSheet.getRows();
-      const results: GSheetUserMappingRow[] = [];
-
-      for (const row of rows) {
-        const slackId = row.get('Slack User ID') || row.get('slackUserId') || row.get('slack_user_id');
-        const asanaId = row.get('Asana User ID') || row.get('asanaUserId') || row.get('asana_user_id');
-
-        if (slackId && asanaId) {
-          results.push({
-            slackUserId: slackId,
-            asanaUserId: asanaId,
-          });
-        }
-      }
-
-      return results;
-    } catch (error) {
-      logger.error('Failed to get all user mappings', { error, sheetUrl });
       throw error;
     }
   }

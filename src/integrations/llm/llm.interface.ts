@@ -32,7 +32,7 @@ export interface ILLMService {
    * @param context - Current conversation context
    * @param taskContext - Optional task context
    * @param actionOutcome - Optional outcome from executed action (for outcome-aware responses)
-   * @returns Generated response with text, optional Slack blocks, suggested actions, and updated task context
+   * @returns Generated response with text, optional Slack blocks, and suggested actions
    */
   generateResponse(
     intent: IntentClassification,

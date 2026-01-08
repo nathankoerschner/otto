@@ -11,6 +11,20 @@ import { ConversationsRepository } from '../db/repositories/conversations.reposi
 import { TasksRepository } from '../db/repositories/tasks.repository';
 import { FollowUpsRepository } from '../db/repositories/follow-ups.repository';
 
+interface AsanaWebhookEvent {
+  resource?: {
+    gid?: string;
+    resource_type?: string;
+  };
+  action?: string;
+  change?: {
+    field?: string;
+    new_value?: {
+      gid?: string;
+    } | boolean;
+  };
+}
+
 /**
  * Register Asana webhook endpoints
  */
@@ -97,7 +111,7 @@ export function registerAsanaWebhookHandler(
 }
 
 async function handleAsanaEvent(
-  event: any,
+  event: AsanaWebhookEvent,
   taskAssignmentService: TaskAssignmentService,
   tenantManager: TenantManagerService,
   tasksRepo: TasksRepository
@@ -133,7 +147,8 @@ async function handleAsanaEvent(
 
     // For assignee changes, verify this is for our bot user
     if (action === 'changed' && changeField === 'assignee') {
-      const newAssigneeId = event.change?.new_value?.gid;
+      const newValue = event.change?.new_value;
+      const newAssigneeId = typeof newValue === 'object' && newValue ? newValue.gid : undefined;
 
       // Check if task was assigned to our bot user
       if (newAssigneeId === tenant.asanaBotUserId) {
@@ -164,13 +179,14 @@ async function handleAsanaEvent(
 }
 
 async function resolveTenantForEvent(
-  event: any,
+  event: AsanaWebhookEvent,
   taskId: string,
   tenantManager: TenantManagerService,
   tasksRepo: TasksRepository
 ): Promise<ReturnType<TenantManagerService['getTenant']>> {
   if (event.action === 'changed' && event.change?.field === 'assignee') {
-    const newAssigneeId = event.change?.new_value?.gid;
+    const newValue = event.change?.new_value;
+    const newAssigneeId = typeof newValue === 'object' && newValue ? newValue.gid : undefined;
     if (newAssigneeId) {
       const tenant = tenantManager.getTenantByAsanaBotUserId(newAssigneeId);
       if (tenant) {
