@@ -146,3 +146,11 @@ BEGIN
     ALTER TABLE tasks ADD COLUMN proposition_sent_at TIMESTAMP WITH TIME ZONE;
   END IF;
 END $$;
+
+-- Add LLM context column to tasks for tracking conversation history across users
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='context') THEN
+    ALTER TABLE tasks ADD COLUMN context JSONB DEFAULT '{"keyPoints": [], "currentUnderstanding": "", "openQuestions": [], "commitmentsMade": []}';
+  END IF;
+END $$;

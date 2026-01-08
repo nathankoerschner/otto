@@ -1,3 +1,23 @@
+/**
+ * Key point from a conversation about a task
+ */
+export interface TaskContextKeyPoint {
+  timestamp: string;
+  slackUserId: string;
+  summary: string;
+}
+
+/**
+ * LLM-generated context stored at the task level.
+ * Accumulates across all conversations about this task.
+ */
+export interface TaskLLMContext {
+  keyPoints: TaskContextKeyPoint[];
+  currentUnderstanding: string;
+  openQuestions: string[];
+  commitmentsMade: string[];
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -31,6 +51,8 @@ export interface Task {
   claimedAt: Date | null;
   propositionMessageTs: string | null;
   propositionSentAt: Date | null;
+  /** LLM-generated context accumulated across all conversations about this task */
+  context: TaskLLMContext | null;
   createdAt: Date;
   updatedAt: Date;
 }

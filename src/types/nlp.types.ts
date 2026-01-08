@@ -1,4 +1,4 @@
-import { Conversation, ConversationMessage, Task, FollowUp } from '../models';
+import { Conversation, ConversationMessage, Task, FollowUp, TaskLLMContext } from '../models';
 
 /**
  * Message intents recognized by the NLP system
@@ -149,6 +149,8 @@ export interface GeneratedResponse {
   text: string;
   blocks?: SlackBlock[];
   suggestedActions: SuggestedAction[];
+  /** Updated task context to be persisted after this exchange */
+  updatedTaskContext?: TaskLLMContext;
 }
 
 /**
@@ -186,6 +188,33 @@ export enum SuggestedActionType {
 }
 
 /**
+ * Outcome of executing an action - used to generate appropriate LLM response
+ */
+export type ActionOutcome =
+  | ClaimTaskOutcome
+  | DeclineTaskOutcome
+  | GenericActionOutcome;
+
+export interface ClaimTaskOutcome {
+  action: 'claim_task';
+  success: boolean;
+  failureReason?: 'already_claimed' | 'asana_match_failed' | 'task_not_found' | 'error';
+  claimedByName?: string;
+}
+
+export interface DeclineTaskOutcome {
+  action: 'decline_task';
+  success: boolean;
+  failureReason?: 'task_not_found' | 'error';
+}
+
+export interface GenericActionOutcome {
+  action: 'escalate' | 'update_task_status' | 'notify_admin' | 'no_action';
+  success: boolean;
+  failureReason?: string;
+}
+
+/**
  * Full result from LLM conversation processing
  */
 export interface ConversationResult {
@@ -215,3 +244,6 @@ export interface LLMConfig {
   model: string;
   maxTokens: number;
 }
+
+// Re-export TaskLLMContext from models for convenience
+export type { TaskLLMContext } from '../models';
