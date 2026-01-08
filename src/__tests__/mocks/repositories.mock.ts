@@ -1,7 +1,7 @@
 /**
  * Mock database repositories for testing
  */
-import { Task, TaskStatus, Tenant, FollowUp, FollowUpType, Conversation, ConversationMessage, ConversationState } from '../../models';
+import { Task, TaskStatus, Tenant, FollowUp, FollowUpType, Conversation, ConversationMessage, ConversationState, TaskLLMContext } from '../../models';
 
 // Helper to generate UUIDs
 const generateId = () => `test-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -51,6 +51,7 @@ export const createMockTasksRepo = () => {
         propositionMessageTs: data.propositionMessageTs ?? null,
         propositionSentAt: data.propositionSentAt ?? null,
         claimedAt: data.claimedAt ?? null,
+        context: data.context ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -70,6 +71,14 @@ export const createMockTasksRepo = () => {
       const task = tasks.get(id);
       if (!task) return null;
       task.status = status;
+      task.updatedAt = new Date();
+      return task;
+    }),
+
+    updateContext: jest.fn(async (id: string, context: TaskLLMContext) => {
+      const task = tasks.get(id);
+      if (!task) return null;
+      task.context = context;
       task.updatedAt = new Date();
       return task;
     }),

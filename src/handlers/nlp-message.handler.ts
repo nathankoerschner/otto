@@ -10,10 +10,10 @@ import { ConversationState, TaskStatus } from '../models';
 import {
   IncomingMessage,
   MessageIntent,
-  SuggestedAction,
-  SuggestedActionType,
   ConversationContext,
   TaskContext,
+  ActionOutcome,
+  IntentClassification,
 } from '../types/nlp.types';
 import { config } from '../config';
 import { logger } from '../utils/logger';
@@ -57,8 +57,8 @@ export class NLPMessageHandler {
       // 3. Get task context if applicable
       const taskContext = await this.getTaskContext(message, context);
 
-      // 4. Conduct conversation with LLM
-      const { intent, response } = await this.llmService.conductConversation(
+      // 4. Classify intent first (before executing actions)
+      const intent = await this.llmService.classifyIntent(
         message.text,
         context,
         taskContext || undefined
@@ -76,17 +76,45 @@ export class NLPMessageHandler {
         return;
       }
 
-      // 6. Execute suggested actions
-      await this.executeActions(response.suggestedActions, message, taskContext);
+      const useTaskDetailsFallback = this.shouldUseTaskDetailsFallback(intent, taskContext);
 
-      // 7. Send response to user
+      // 6. Execute actions FIRST and capture outcomes
+      const actionOutcome = useTaskDetailsFallback
+        ? undefined
+        : await this.executeActionsWithOutcome(intent, message, taskContext);
+
+      // 7. Generate response with action outcome (so LLM knows what actually happened)
+      const response = useTaskDetailsFallback
+        ? {
+            text:
+              "I don't have the full task details here. Please check the Asana card for further detail, and let me know if you'd like to take it on.",
+            suggestedActions: [],
+          }
+        : await this.llmService.generateResponse(
+            intent,
+            message.text,
+            context,
+            taskContext || undefined,
+            actionOutcome
+          );
+
+      // 8. Send response to user
       await say({
         text: response.text,
         blocks: response.blocks,
         thread_ts: message.threadTs,
       });
 
-      // 8. Update conversation context with assistant response
+      // 9. Save updated task context if we have one
+      if (taskContext && response.updatedTaskContext) {
+        await this.tasksRepo.updateContext(taskContext.task.id, response.updatedTaskContext);
+        logger.debug('Updated task context', {
+          taskId: taskContext.task.id,
+          keyPointsCount: response.updatedTaskContext.keyPoints.length,
+        });
+      }
+
+      // 10. Update conversation context with assistant response
       await this.contextService.addMessage(
         context.conversation.id,
         'assistant',
@@ -96,7 +124,7 @@ export class NLPMessageHandler {
         intent.extractedData
       );
 
-      // 9. Update conversation state based on intent
+      // 11. Update conversation state based on intent
       await this.updateConversationState(context, intent.intent, taskContext);
 
     } catch (error) {
@@ -113,6 +141,96 @@ export class NLPMessageHandler {
         text: "I'm having trouble processing your message right now. Please try again or use the buttons on my messages.",
         thread_ts: message.threadTs,
       });
+    }
+  }
+
+  private shouldUseTaskDetailsFallback(
+    intent: IntentClassification,
+    taskContext: TaskContext | null
+  ): boolean {
+    if (!taskContext) {
+      return false;
+    }
+
+    return (
+      (intent.intent === MessageIntent.ASK_QUESTION ||
+        intent.intent === MessageIntent.REQUEST_MORE_INFO) &&
+      !taskContext.formattedAsanaData
+    );
+  }
+
+  /**
+   * Execute actions based on intent and return outcome for response generation
+   * This ensures the LLM knows the actual result before generating a response
+   */
+  private async executeActionsWithOutcome(
+    intent: { intent: MessageIntent; extractedData?: Record<string, unknown> },
+    message: IncomingMessage,
+    taskContext: TaskContext | null
+  ): Promise<ActionOutcome | undefined> {
+    const taskId = taskContext?.task.id;
+
+    if (!taskId) {
+      return undefined;
+    }
+
+    try {
+      switch (intent.intent) {
+        case MessageIntent.ACCEPT_TASK: {
+          const success = await this.taskAssignmentService.claimTask(
+            taskId,
+            message.userId,
+            message.tenantId
+          );
+          const outcome: ActionOutcome = { action: 'claim_task', success };
+          logger.info('Task claim attempted via NLP', { taskId, userId: message.userId, success });
+          return outcome;
+        }
+
+        case MessageIntent.DECLINE_TASK: {
+          const reason = intent.extractedData?.reason as string | undefined;
+          await this.taskAssignmentService.declineTask(
+            taskId,
+            message.userId,
+            message.tenantId,
+            reason
+          );
+          const outcome: ActionOutcome = { action: 'decline_task', success: true };
+          logger.info('Task decline attempted via NLP', { taskId, userId: message.userId, reason });
+          return outcome;
+        }
+
+        case MessageIntent.REPORT_COMPLETION: {
+          await this.tasksRepo.updateStatus(taskId, TaskStatus.COMPLETED);
+          logger.info('Task marked complete via NLP', { taskId, userId: message.userId });
+          return { action: 'update_task_status', success: true };
+        }
+
+        case MessageIntent.REPORT_BLOCKER: {
+          await this.notifyAdmin(message.tenantId, taskId, { blockerDetails: intent.extractedData });
+          logger.info('Admin notified of blocker via NLP', { taskId });
+          return { action: 'notify_admin', success: true };
+        }
+
+        case MessageIntent.REQUEST_HELP: {
+          await this.escalateTask(message.tenantId, taskId, intent.extractedData);
+          logger.info('Task escalated via NLP', { taskId });
+          return { action: 'escalate', success: true };
+        }
+
+        case MessageIntent.REQUEST_EXTENSION: {
+          await this.notifyAdmin(message.tenantId, taskId, { extensionRequest: intent.extractedData });
+          logger.info('Extension request sent to admin via NLP', { taskId });
+          return { action: 'notify_admin', success: true };
+        }
+
+        default:
+          // No action needed for other intents (questions, greetings, etc.)
+          return undefined;
+      }
+    } catch (error) {
+      logger.error('Failed to execute action', { error, intent: intent.intent, taskId });
+      return undefined;
     }
   }
 
@@ -166,103 +284,6 @@ export class NLPMessageHandler {
     }
 
     return taskContext;
-  }
-
-  /**
-   * Execute suggested actions from LLM response
-   */
-  private async executeActions(
-    actions: SuggestedAction[],
-    message: IncomingMessage,
-    taskContext: TaskContext | null
-  ): Promise<void> {
-    for (const action of actions) {
-      try {
-        await this.executeAction(action, message, taskContext);
-      } catch (error) {
-        logger.error('Failed to execute action', { error, action });
-      }
-    }
-  }
-
-  /**
-   * Execute a single action
-   */
-  private async executeAction(
-    action: SuggestedAction,
-    message: IncomingMessage,
-    taskContext: TaskContext | null
-  ): Promise<void> {
-    if (action.type === SuggestedActionType.NO_ACTION) {
-      return;
-    }
-
-    const contextTaskId = taskContext?.task.id;
-    if (!contextTaskId) {
-      logger.warn('No task context for action', { actionType: action.type, userId: message.userId });
-      return;
-    }
-
-    if (action.taskId && action.taskId !== contextTaskId) {
-      logger.warn('Ignoring action with mismatched task ID', {
-        actionType: action.type,
-        providedTaskId: action.taskId,
-        contextTaskId,
-      });
-      return;
-    }
-
-    const taskId = contextTaskId;
-
-    switch (action.type) {
-      case SuggestedActionType.CLAIM_TASK:
-        if (taskId) {
-          await this.taskAssignmentService.claimTask(
-            taskId,
-            message.userId,
-            message.tenantId
-          );
-          logger.info('Task claimed via NLP', { taskId, userId: message.userId });
-        }
-        break;
-
-      case SuggestedActionType.DECLINE_TASK:
-        if (taskId) {
-          const reason = action.metadata?.reason as string | undefined;
-          await this.taskAssignmentService.declineTask(
-            taskId,
-            message.userId,
-            message.tenantId,
-            reason
-          );
-          logger.info('Task declined via NLP', { taskId, userId: message.userId, reason });
-        }
-        break;
-
-      case SuggestedActionType.UPDATE_TASK_STATUS:
-        if (taskId && action.metadata?.status === 'completed') {
-          await this.tasksRepo.updateStatus(taskId, TaskStatus.COMPLETED);
-          logger.info('Task marked complete via NLP', { taskId, userId: message.userId });
-        }
-        break;
-
-      case SuggestedActionType.NOTIFY_ADMIN:
-        if (taskId) {
-          await this.notifyAdmin(message.tenantId, taskId, action.metadata);
-          logger.info('Admin notified via NLP', { taskId, metadata: action.metadata });
-        }
-        break;
-
-      case SuggestedActionType.ESCALATE:
-        if (taskId) {
-          await this.escalateTask(message.tenantId, taskId, action.metadata);
-          logger.info('Task escalated via NLP', { taskId, metadata: action.metadata });
-        }
-        break;
-
-      default:
-        logger.warn('Unknown action type', { actionType: action.type });
-    }
   }
 
   /**

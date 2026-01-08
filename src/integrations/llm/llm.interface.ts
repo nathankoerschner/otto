@@ -4,6 +4,7 @@ import {
   IntentClassification,
   GeneratedResponse,
   ConversationResult,
+  ActionOutcome,
 } from '../../types/nlp.types';
 
 /**
@@ -25,18 +26,20 @@ export interface ILLMService {
   ): Promise<IntentClassification>;
 
   /**
-   * Generate a response based on classified intent
+   * Generate a response based on classified intent and action outcome
    * @param intent - The classified intent
    * @param userMessage - The user's message text (passed explicitly to avoid stale context)
    * @param context - Current conversation context
    * @param taskContext - Optional task context
-   * @returns Generated response with text, optional Slack blocks, and suggested actions
+   * @param actionOutcome - Optional outcome from executed action (for outcome-aware responses)
+   * @returns Generated response with text, optional Slack blocks, suggested actions, and updated task context
    */
   generateResponse(
     intent: IntentClassification,
     userMessage: string,
     context: ConversationContext,
-    taskContext?: TaskContext
+    taskContext?: TaskContext,
+    actionOutcome?: ActionOutcome
   ): Promise<GeneratedResponse>;
 
   /**
@@ -70,7 +73,8 @@ export abstract class BaseLLMProvider implements ILLMService {
     intent: IntentClassification,
     userMessage: string,
     context: ConversationContext,
-    taskContext?: TaskContext
+    taskContext?: TaskContext,
+    actionOutcome?: ActionOutcome
   ): Promise<GeneratedResponse>;
 
   async conductConversation(
