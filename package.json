@@ -13,7 +13,8 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
     "db:migrate": "bun src/db/migrate.ts",
-    "db:seed": "bun src/db/seed.ts"
+    "db:seed": "bun src/db/seed.ts",
+    "db:seed:prod": "NODE_ENV=production bun src/db/seed.ts"
   },
   "keywords": [
     "slack",
