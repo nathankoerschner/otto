@@ -37,34 +37,60 @@ test.describe('Landing Page', () => {
 })
 
 test.describe('Setup Page', () => {
-  test('displays workspace form', async ({ page }) => {
+  test('displays registration form', async ({ page }) => {
     await page.goto('/setup')
 
     // Check for form elements
     await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible()
-    await expect(page.locator('input[name="name"]')).toBeVisible()
-    await expect(page.locator('input[name="adminEmail"]')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
+    await expect(page.getByLabel('Workspace Name')).toBeVisible()
+    await expect(page.getByLabel('Email')).toBeVisible()
+    await expect(page.getByLabel('Password')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create Workspace' })).toBeVisible()
   })
 
   test('shows progress indicator', async ({ page }) => {
     await page.goto('/setup')
 
-    // Check progress steps are visible (use the progress indicator section)
-    const progressSteps = page.locator('[class*="flex"][class*="justify-between"]').first()
-    await expect(progressSteps.getByText('Workspace')).toBeVisible()
-    await expect(progressSteps.getByText('Slack')).toBeVisible()
-    await expect(progressSteps.getByText('Asana')).toBeVisible()
-    await expect(progressSteps.getByText('Complete')).toBeVisible()
+    // Check progress steps are visible
+    await expect(page.getByText('Register')).toBeVisible()
+    await expect(page.getByText('Integrations')).toBeVisible()
+    await expect(page.getByText('Complete')).toBeVisible()
   })
 
   test('validates required fields', async ({ page }) => {
     await page.goto('/setup')
 
-    // Click continue without filling in fields
-    await page.getByRole('button', { name: 'Continue' }).click()
+    // Click submit without filling in fields
+    await page.getByRole('button', { name: 'Create Workspace' }).click()
 
     // Should show validation error
     await expect(page.getByText('Workspace name is required')).toBeVisible()
+  })
+
+  test('shows Google sign-in option', async ({ page }) => {
+    await page.goto('/setup')
+
+    // Check for Google sign-in button
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  })
+
+  test('can switch between register and login modes', async ({ page }) => {
+    await page.goto('/setup')
+
+    // Should start in register mode
+    await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible()
+
+    // Click sign in link
+    await page.getByRole('button', { name: 'Sign in' }).click()
+
+    // Should now be in login mode
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible()
+
+    // Click create one link to go back
+    await page.getByRole('button', { name: 'Create one' }).click()
+
+    // Should be back in register mode
+    await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible()
   })
 })
