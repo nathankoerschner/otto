@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+  GCP_PROJECT: ${{ vars.GCP_PROJECT || 'otto-482718' }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   SERVICE_NAME: otto
-  IMAGE_NAME: gcr.io/${{ vars.GCP_PROJECT }}/otto
+  IMAGE_NAME: gcr.io/${{ vars.GCP_PROJECT || 'otto-482718' }}/otto
 
 jobs:
   deploy:
