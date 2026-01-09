@@ -1,0 +1,3 @@
+[test]
+# Only run backend tests from root - frontend tests run separately in ./web
+root = "./src"
