@@ -16,10 +16,10 @@ This document provides step-by-step instructions for setting up the infrastructu
 
 ```bash
 # Create new GCP project
-gcloud projects create otto-bot-prod --name="Otto Bot"
+gcloud projects create otto-482718 --name="Otto Bot"
 
 # Set as active project
-gcloud config set project otto-bot-prod
+gcloud config set project otto-482718
 
 # Enable required APIs
 gcloud services enable \
@@ -93,12 +93,12 @@ gcloud iam service-accounts create otto-bot \
   --display-name="Otto Bot Service Account"
 
 # Grant necessary permissions
-gcloud projects add-iam-policy-binding otto-bot-prod \
-  --member="serviceAccount:otto-bot@otto-bot-prod.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding otto-482718 \
+  --member="serviceAccount:otto-bot@otto-482718.iam.gserviceaccount.com" \
   --role="roles/cloudsql.client"
 
-gcloud projects add-iam-policy-binding otto-bot-prod \
-  --member="serviceAccount:otto-bot@otto-bot-prod.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding otto-482718 \
+  --member="serviceAccount:otto-bot@otto-482718.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -111,34 +111,107 @@ gcloud iam service-accounts create otto-sheets \
 
 # Generate key
 gcloud iam service-accounts keys create sheets-key.json \
-  --iam-account=otto-sheets@otto-bot-prod.iam.gserviceaccount.com
+  --iam-account=otto-sheets@otto-482718.iam.gserviceaccount.com
 
 # Store the key in Secret Manager (done above)
 ```
 
-**Important**: Share tenant Google Sheets with `otto-sheets@otto-bot-prod.iam.gserviceaccount.com`
+**Important**: Share tenant Google Sheets with `otto-sheets@otto-482718.iam.gserviceaccount.com`
 
-## 5. Cloud Run Setup
+## 5. GitHub Actions CI/CD Setup
+
+### Set Up Workload Identity Federation
+
+Workload Identity Federation allows GitHub Actions to authenticate with GCP without using service account keys.
+
+```bash
+# Create a Workload Identity Pool
+gcloud iam workload-identity-pools create "github-pool" \
+  --project="otto-482718" \
+  --location="global" \
+  --display-name="GitHub Actions Pool"
+
+# Create a Workload Identity Provider
+gcloud iam workload-identity-pools providers create-oidc "github-provider" \
+  --project="otto-482718" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --display-name="GitHub Provider" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
+  --issuer-uri="https://token.actions.githubusercontent.com"
+
+# Allow GitHub repo to impersonate the service account
+# Replace YOUR_GITHUB_ORG/YOUR_REPO with your actual repo
+gcloud iam service-accounts add-iam-policy-binding \
+  "otto-bot@otto-482718.iam.gserviceaccount.com" \
+  --project="otto-482718" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/YOUR_GITHUB_ORG/YOUR_REPO"
+
+# Get the Workload Identity Provider resource name (you'll need this for GitHub secrets)
+gcloud iam workload-identity-pools providers describe "github-provider" \
+  --project="otto-482718" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --format="value(name)"
+```
+
+### Configure GitHub Repository
+
+Add these secrets and variables to your GitHub repository:
+
+**Secrets** (Settings > Secrets and variables > Actions > Secrets):
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`: The provider resource name from above (format: `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider`)
+- `GCP_SERVICE_ACCOUNT`: `otto-bot@otto-482718.iam.gserviceaccount.com`
+
+**Variables** (Settings > Secrets and variables > Actions > Variables):
+- `GCP_PROJECT`: `otto-482718`
+- `GCP_REGION`: `us-central1` (optional, defaults to us-central1)
+
+### Grant Additional Permissions
+
+The service account needs permissions to deploy to Cloud Run:
+
+```bash
+# Grant Cloud Run Admin role
+gcloud projects add-iam-policy-binding otto-482718 \
+  --member="serviceAccount:otto-bot@otto-482718.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+# Grant Storage Admin for pushing to GCR
+gcloud projects add-iam-policy-binding otto-482718 \
+  --member="serviceAccount:otto-bot@otto-482718.iam.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+# Grant Service Account User (to deploy with the service account)
+gcloud iam service-accounts add-iam-policy-binding \
+  "otto-bot@otto-482718.iam.gserviceaccount.com" \
+  --project="otto-482718" \
+  --role="roles/iam.serviceAccountUser" \
+  --member="serviceAccount:otto-bot@otto-482718.iam.gserviceaccount.com"
+```
+
+## 6. Cloud Run Setup
 
 ### Build and Deploy
 
 ```bash
 # Build container image
-gcloud builds submit --tag gcr.io/otto-bot-prod/otto
+gcloud builds submit --tag gcr.io/otto-482718/otto
 
 # Deploy to Cloud Run
 gcloud run deploy otto \
-  --image gcr.io/otto-bot-prod/otto \
+  --image gcr.io/otto-482718/otto \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --service-account otto-bot@otto-bot-prod.iam.gserviceaccount.com \
-  --add-cloudsql-instances otto-bot-prod:us-central1:otto-db \
+  --service-account otto-bot@otto-482718.iam.gserviceaccount.com \
+  --add-cloudsql-instances otto-482718:us-central1:otto-db \
   --set-env-vars "NODE_ENV=production" \
-  --set-env-vars "DB_HOST=/cloudsql/otto-bot-prod:us-central1:otto-db" \
+  --set-env-vars "DB_HOST=/cloudsql/otto-482718:us-central1:otto-db" \
   --set-env-vars "DB_NAME=otto" \
   --set-env-vars "DB_USER=postgres" \
-  --set-env-vars "GCP_PROJECT_ID=otto-bot-prod" \
+  --set-env-vars "GCP_PROJECT_ID=otto-482718" \
   --set-env-vars "GCP_SECRET_MANAGER_ENABLED=true" \
   --set-env-vars "BOT_EMAIL_DOMAIN=otto.example.com" \
   --set-secrets "DB_PASSWORD=db-password:latest" \
@@ -154,7 +227,7 @@ gcloud run deploy otto \
 
 Note the Cloud Run service URL (e.g., `https://otto-abcd1234-uc.a.run.app`)
 
-## 6. Slack App Setup
+## 7. Slack App Setup
 
 ### Create Slack App
 
@@ -196,7 +269,7 @@ Note the Cloud Run service URL (e.g., `https://otto-abcd1234-uc.a.run.app`)
 1. Install to your workspace
 2. Copy Bot User OAuth Token → Store in Secret Manager
 
-## 7. Asana Setup
+## 8. Asana Setup
 
 ### Create Bot User Accounts
 
@@ -218,7 +291,7 @@ Webhooks are created programmatically when a tenant is onboarded.
 
 Webhook URL: `https://YOUR-CLOUD-RUN-URL/webhooks/asana`
 
-## 8. Domain Configuration
+## 9. Domain Configuration
 
 ### Set Up Email Domain
 
@@ -230,7 +303,7 @@ Configure `otto.example.com` to receive emails for bot accounts:
 
 **Note**: Asana bot accounts don't need to receive emails, just use the address for account creation.
 
-## 9. Cloud Scheduler (Optional - for periodic tasks)
+## 10. Cloud Scheduler (Optional - for periodic tasks)
 
 Set up scheduled jobs for follow-up processing:
 
@@ -240,11 +313,11 @@ gcloud scheduler jobs create http process-followups \
   --schedule="*/10 * * * *" \
   --uri="https://YOUR-CLOUD-RUN-URL/cron/process-followups" \
   --http-method=POST \
-  --oidc-service-account-email=otto-bot@otto-bot-prod.iam.gserviceaccount.com \
+  --oidc-service-account-email=otto-bot@otto-482718.iam.gserviceaccount.com \
   --location=us-central1
 ```
 
-## 10. Monitoring & Logging
+## 11. Monitoring & Logging
 
 ### View Logs
 
@@ -265,7 +338,7 @@ Configure alerts for:
 - Database connection failures
 - Integration failures (Slack/Asana)
 
-## 11. Tenant Onboarding Process
+## 12. Tenant Onboarding Process
 
 For each new tenant:
 
@@ -292,13 +365,13 @@ For each new tenant:
 
 5. **Configure Google Sheet:**
    - Tenant creates sheet with required structure
-   - Shares with `otto-sheets@otto-bot-prod.iam.gserviceaccount.com`
+   - Shares with `otto-sheets@otto-482718.iam.gserviceaccount.com`
    - Add sheet URL to tenant record
 
 6. **Set admin contact:**
    - Store admin Slack user ID in tenant record
 
-## 12. Local Development Setup
+## 13. Local Development Setup
 
 ```bash
 # Copy environment template

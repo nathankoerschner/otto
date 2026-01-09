@@ -43,7 +43,7 @@ docker-run: ## Run Docker container locally
 	docker run -p 3000:3000 --env-file .env otto:latest
 
 # GCP Deployment targets
-GCP_PROJECT ?= otto-bot-prod
+GCP_PROJECT ?= otto-482718
 GCP_REGION ?= us-central1
 IMAGE_NAME ?= gcr.io/$(GCP_PROJECT)/otto
 
