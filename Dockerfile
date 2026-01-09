@@ -1,5 +1,14 @@
 # Stage 1: Build frontend
 FROM oven/bun:1 AS frontend-builder
+
+# Firebase configuration (passed at build time)
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_STORAGE_BUCKET
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ARG VITE_FIREBASE_APP_ID
+
 WORKDIR /app/web
 COPY web/package.json web/bun.lockb* ./
 RUN bun install --frozen-lockfile
