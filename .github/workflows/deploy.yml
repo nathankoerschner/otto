@@ -55,6 +55,8 @@ jobs:
             --platform managed \
             --region ${{ env.GCP_REGION }} \
             --project ${{ env.GCP_PROJECT }} \
+            --service-account ${{ secrets.GCP_SERVICE_ACCOUNT }} \
+            --allow-unauthenticated \
             --quiet
 
       - name: Get Cloud Run URL
