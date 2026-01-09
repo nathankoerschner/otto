@@ -1,6 +1,6 @@
-import { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, RenderOptions } from '@testing-library/react'
+import { render, type RenderOptions } from '@testing-library/react'
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -47,5 +47,6 @@ export function renderWithProviders(
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export * from '@testing-library/react'
 export { default as userEvent } from '@testing-library/user-event'

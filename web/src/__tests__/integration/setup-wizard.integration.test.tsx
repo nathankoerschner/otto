@@ -4,7 +4,7 @@
  * through OAuth connections to completion.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders, userEvent } from '@/test-utils'
 import { Setup } from '@/pages/Setup'
 import { useSetupState } from '@/hooks'
@@ -15,10 +15,7 @@ import { setupServer } from 'msw/node'
 const mockTenant = {
   id: 'tenant-integration-test',
   name: 'Integration Test Workspace',
-  slackWorkspaceId: null,
-  asanaWorkspaceId: null,
-  adminSlackUserId: null,
-  createdAt: '2024-01-01T00:00:00Z',
+  setupCompleted: false,
 }
 
 let mockSetupStatus = {

@@ -8,10 +8,7 @@ import { setupServer } from 'msw/node'
 const mockTenant = {
   id: 'tenant-123',
   name: 'Test Workspace',
-  slackWorkspaceId: null,
-  asanaWorkspaceId: null,
-  adminSlackUserId: null,
-  createdAt: '2024-01-01T00:00:00Z',
+  setupCompleted: false,
 }
 
 const server = setupServer(

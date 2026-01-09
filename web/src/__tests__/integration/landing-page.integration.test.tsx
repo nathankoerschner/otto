@@ -5,7 +5,6 @@
  */
 import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { Landing } from '@/pages/Landing'
 
 describe('Landing Page Integration', () => {
@@ -179,8 +178,7 @@ describe('Landing Page Integration', () => {
       expect(h2s.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('all links are keyboard accessible', async () => {
-      const user = userEvent.setup()
+    it('all links are keyboard accessible', () => {
       render(<Landing />)
 
       const links = screen.getAllByRole('link')

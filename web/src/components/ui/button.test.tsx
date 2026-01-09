@@ -110,7 +110,7 @@ describe('Button', () => {
     const ref = vi.fn()
     render(<Button ref={ref}>Ref Button</Button>)
     expect(ref).toHaveBeenCalled()
-    expect(ref.mock.calls[0][0]).toBeInstanceOf(HTMLButtonElement)
+    expect(ref.mock.calls[0]?.[0]).toBeInstanceOf(HTMLButtonElement)
   })
 
   it('passes through additional props', () => {

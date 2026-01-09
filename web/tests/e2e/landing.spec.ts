@@ -4,8 +4,8 @@ test.describe('Landing Page', () => {
   test('has title', async ({ page }) => {
     await page.goto('/')
 
-    // Check that the page has loaded with Otto content
-    await expect(page.locator('text=Otto')).toBeVisible()
+    // Check that the page has loaded with Otto content (use first match for header)
+    await expect(page.locator('header').getByText('Otto')).toBeVisible()
   })
 
   test('displays hero section', async ({ page }) => {
@@ -41,29 +41,30 @@ test.describe('Setup Page', () => {
     await page.goto('/setup')
 
     // Check for form elements
-    await expect(page.locator('text=Create your workspace')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible()
     await expect(page.locator('input[name="name"]')).toBeVisible()
     await expect(page.locator('input[name="adminEmail"]')).toBeVisible()
-    await expect(page.locator('button', { hasText: 'Continue' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
   })
 
   test('shows progress indicator', async ({ page }) => {
     await page.goto('/setup')
 
-    // Check progress steps are visible
-    await expect(page.locator('text=Workspace')).toBeVisible()
-    await expect(page.locator('text=Slack')).toBeVisible()
-    await expect(page.locator('text=Asana')).toBeVisible()
-    await expect(page.locator('text=Complete')).toBeVisible()
+    // Check progress steps are visible (use the progress indicator section)
+    const progressSteps = page.locator('[class*="flex"][class*="justify-between"]').first()
+    await expect(progressSteps.getByText('Workspace')).toBeVisible()
+    await expect(progressSteps.getByText('Slack')).toBeVisible()
+    await expect(progressSteps.getByText('Asana')).toBeVisible()
+    await expect(progressSteps.getByText('Complete')).toBeVisible()
   })
 
   test('validates required fields', async ({ page }) => {
     await page.goto('/setup')
 
     // Click continue without filling in fields
-    await page.locator('button', { hasText: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Continue' }).click()
 
     // Should show validation error
-    await expect(page.locator('text=Workspace name is required')).toBeVisible()
+    await expect(page.getByText('Workspace name is required')).toBeVisible()
   })
 })

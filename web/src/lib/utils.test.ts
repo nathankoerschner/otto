@@ -11,11 +11,13 @@ describe('cn utility', () => {
   })
 
   it('should handle conditional classes', () => {
-    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz')
+    const shouldHideBar = false
+    expect(cn('foo', shouldHideBar && 'bar', 'baz')).toBe('foo baz')
   })
 
   it('should handle true conditionals', () => {
-    expect(cn('foo', true && 'bar', 'baz')).toBe('foo bar baz')
+    const shouldShowBar = true
+    expect(cn('foo', shouldShowBar && 'bar', 'baz')).toBe('foo bar baz')
   })
 
   it('should handle undefined values', () => {
