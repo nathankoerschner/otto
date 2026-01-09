@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { config } from './config';
 import { logger } from './utils/logger';
 import { initializeDatabase } from './db';
@@ -70,6 +71,15 @@ async function main() {
     // Register webhook handlers
     registerAsanaWebhookHandler(app, asanaClient, slackBot, tenantManager);
     registerSlackEventHandlers(slackBot, asanaClient, tenantManager, llmService);
+
+    // Serve frontend static files
+    const publicPath = path.join(__dirname, '../public');
+    app.use(express.static(publicPath));
+
+    // SPA fallback - serve index.html for client-side routes
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    });
 
     // Start server
     const port = config.port;

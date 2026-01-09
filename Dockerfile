@@ -1,51 +1,36 @@
-# Build stage
-FROM oven/bun:1 AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package.json bun.lockb* ./
-COPY tsconfig.json ./
-
-# Install dependencies
+# Stage 1: Build frontend
+FROM oven/bun:1 AS frontend-builder
+WORKDIR /app/web
+COPY web/package.json web/bun.lockb* ./
 RUN bun install --frozen-lockfile
-
-# Copy source code
-COPY src ./src
-
-# Build TypeScript
+COPY web/ ./
 RUN bun run build
 
-# Production stage
-FROM oven/bun:1
-
+# Stage 2: Build backend
+FROM oven/bun:1 AS backend-builder
 WORKDIR /app
-
-# Copy package files
 COPY package.json bun.lockb* ./
+COPY tsconfig.json ./
+RUN bun install --frozen-lockfile
+COPY src ./src
+RUN bun run build
 
-# Install production dependencies only
+# Stage 3: Production
+FROM oven/bun:1
+WORKDIR /app
+COPY package.json bun.lockb* ./
 RUN bun install --production --frozen-lockfile
+COPY --from=backend-builder /app/dist ./dist
+COPY --from=frontend-builder /app/web/dist ./public
 
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
-
-# Create non-root user
 RUN groupadd --gid 1001 --system nodejs && \
     useradd --system --uid 1001 --gid nodejs nodejs
-
-# Change ownership
 RUN chown -R nodejs:nodejs /app
-
-# Switch to non-root user
 USER nodejs
 
-# Expose port
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD bun -e "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1))"
 
-# Start application
 CMD ["bun", "run", "dist/index.js"]
