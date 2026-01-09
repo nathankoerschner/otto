@@ -57,6 +57,7 @@ jobs:
             --project ${{ env.GCP_PROJECT }} \
             --service-account ${{ secrets.GCP_SERVICE_ACCOUNT }} \
             --allow-unauthenticated \
+            --port 3000 \
             --quiet
 
       - name: Get Cloud Run URL
