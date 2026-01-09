@@ -46,7 +46,7 @@ async function main() {
     logger.info('Services initialized');
 
     // Initialize and start scheduler for periodic jobs
-    const scheduler = new SchedulerService(followUpService, asanaClient, tenantManager);
+    const scheduler = new SchedulerService(followUpService, tenantManager);
     scheduler.start();
     logger.info('Scheduler started');
 
