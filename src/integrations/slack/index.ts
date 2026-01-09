@@ -9,11 +9,12 @@ export class SlackBot implements IMessagingClient {
   private clients: Map<string, WebClient> = new Map();
 
   constructor() {
-    // For local development with a single workspace, we need to provide a token
-    const isLocalDev = process.env.NODE_ENV === 'development' && process.env.SLACK_BOT_TOKEN;
+    // Use SLACK_BOT_TOKEN if provided (single workspace mode)
+    // Multi-tenant mode uses registerTenantClient for per-tenant tokens
+    const useToken = process.env.SLACK_BOT_TOKEN;
 
     this.app = new App({
-      token: isLocalDev ? process.env.SLACK_BOT_TOKEN : undefined,
+      token: useToken || undefined,
       signingSecret: config.slack.signingSecret,
       appToken: config.slack.appToken,
       socketMode: true,
