@@ -7,7 +7,6 @@ import { GoogleSheetsClient } from '../integrations/sheets';
 import { TasksRepository } from '../db/repositories';
 import { TenantManagerService } from './tenant-manager.service';
 import { UserMatchingService } from './user-matching.service';
-import { FollowUpService } from './follow-up.service';
 import { ConversationContextService } from './conversation-context.service';
 import { config } from '../config';
 import { ClaimTaskOutcome, DeclineTaskOutcome } from '../types/nlp.types';
@@ -25,7 +24,6 @@ export class TaskAssignmentService {
     private asanaClient: AsanaClient,
     private tenantManager: TenantManagerService,
     private userMatchingService: UserMatchingService,
-    private followUpService: FollowUpService,
     conversationContextService?: ConversationContextService
   ) {
     this.tasksRepo = new TasksRepository();
@@ -261,14 +259,6 @@ export class TaskAssignmentService {
       const comment = `Assigned to ${slackUser?.name || slackUserId} via Otto on ${new Date().toLocaleString()}`;
       await this.asanaClient.addComment(task.asanaTaskId, comment, tenantId);
       logger.debug('Step 7 SUCCESS: Comment added');
-
-      // 8. Schedule follow-ups
-      logger.debug('Step 8: Scheduling follow-ups');
-      const updatedTask = await this.tasksRepo.findById(taskId);
-      if (updatedTask) {
-        await this.followUpService.scheduleFollowUps(updatedTask);
-        logger.debug('Step 8 SUCCESS: Follow-ups scheduled', { taskId });
-      }
 
       logger.info('=== CLAIM TASK COMPLETE SUCCESS ===', { taskId, slackUserId, asanaUserId });
       return { action: 'claim_task', success: true };

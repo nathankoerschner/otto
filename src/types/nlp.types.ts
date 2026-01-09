@@ -1,4 +1,4 @@
-import { Conversation, ConversationMessage, Task, FollowUp } from '../models';
+import { Conversation, ConversationMessage, Task } from '../models';
 
 /**
  * Message intents recognized by the NLP system
@@ -10,13 +10,6 @@ export enum MessageIntent {
   ASK_QUESTION = 'ask_question',
   NEGOTIATE_TIMING = 'negotiate_timing',
   REQUEST_MORE_INFO = 'request_more_info',
-
-  // Follow-up responses
-  STATUS_UPDATE = 'status_update',
-  REPORT_BLOCKER = 'report_blocker',
-  REPORT_COMPLETION = 'report_completion',
-  REQUEST_HELP = 'request_help',
-  REQUEST_EXTENSION = 'request_extension',
 
   // General
   GENERAL_QUESTION = 'general_question',
@@ -41,7 +34,6 @@ export interface IntentClassification {
 export type ExtractedData =
   | TaskAcceptanceDetails
   | TaskDeclineDetails
-  | StatusUpdateDetails
   | BlockerDetails
   | ExtensionRequestDetails
   | QuestionDetails
@@ -69,18 +61,6 @@ export interface TaskDeclineDetails {
   alternativePerson?: string;
   availabilityInfo?: string;
   wouldAcceptLater?: boolean;
-  [key: string]: unknown;
-}
-
-/**
- * Details extracted from status update responses
- */
-export interface StatusUpdateDetails {
-  type: 'status_update';
-  currentStatus: 'not_started' | 'in_progress' | 'blocked' | 'nearly_done' | 'completed';
-  progressPercentage?: number;
-  estimatedCompletion?: string;
-  notes?: string;
   [key: string]: unknown;
 }
 
@@ -125,7 +105,6 @@ export interface ConversationContext {
   conversation: Conversation;
   messages: ConversationMessage[];
   activeTask?: Task;
-  pendingFollowUp?: FollowUp;
 }
 
 /**
@@ -136,8 +115,6 @@ export interface TaskContext {
   asanaTaskName: string;
   asanaTaskDescription?: string;
   asanaTaskUrl: string;
-  followUps: FollowUp[];
-  lastFollowUpSent?: FollowUp;
   /** Pre-formatted full task data from Asana for LLM context */
   formattedAsanaData?: string;
 }
@@ -179,7 +156,6 @@ export enum SuggestedActionType {
   CLAIM_TASK = 'claim_task',
   DECLINE_TASK = 'decline_task',
   ESCALATE = 'escalate',
-  SCHEDULE_FOLLOW_UP = 'schedule_follow_up',
   UPDATE_TASK_STATUS = 'update_task_status',
   NOTIFY_ADMIN = 'notify_admin',
   NO_ACTION = 'no_action',

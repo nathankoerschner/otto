@@ -68,13 +68,6 @@ TASK PROPOSITION RESPONSES (when user is responding to a task assignment request
 - negotiate_timing: User wants to discuss due dates or timing (e.g., "Can we push the deadline?", "I can do it next week")
 - request_more_info: User needs more details before deciding (e.g., "Tell me more about this task", "What exactly is needed?")
 
-FOLLOW-UP RESPONSES (when user is responding to a progress check-in):
-- status_update: User is providing progress information (e.g., "Going well!", "About 50% done")
-- report_blocker: User is reporting something blocking their progress (e.g., "I'm stuck on...", "Waiting for API access")
-- report_completion: User indicates task is done (e.g., "Done!", "Just finished it")
-- request_help: User needs assistance (e.g., "Could use some help with...", "Not sure how to...")
-- request_extension: User wants more time (e.g., "Need a few more days", "Can I have until Friday?")
-
 GENERAL:
 - general_question: General question about tasks or Otto (e.g., "How does this work?", "What tasks are assigned to me?")
 - list_tasks: User wants to see their tasks (e.g., "Show my tasks", "What's on my plate?")
@@ -83,14 +76,10 @@ GENERAL:
 
 Consider the conversation context carefully:
 - If there's a pending proposition (awaiting_proposition_response state), prioritize proposition-related intents
-- If there's a pending follow-up (awaiting_follow_up_response state), prioritize follow-up-related intents
 - Look for both explicit statements and implicit signals
 
 Extract relevant data based on the intent:
 - For declines: extract reason, whether they suggest someone else
-- For status updates: extract progress percentage, estimated completion
-- For blockers: extract blocker type and description
-- For extension requests: extract requested timeline and reason
 
 Respond with JSON only.`;
 
@@ -172,41 +161,6 @@ Include:
 - If they asked about something specific, focus on that
 - If certain information isn't available, say so clearly
 - After sharing the info, ask if this helps them decide or if they have more questions`,
-
-  [MessageIntent.STATUS_UPDATE]: `The user provided a status update. Generate an encouraging acknowledgment.
-Include:
-- Acknowledge their progress
-- If they're on track, express encouragement
-- If they mentioned challenges, offer support
-- Keep it brief and positive`,
-
-  [MessageIntent.REPORT_BLOCKER]: `The user reported a blocker. Generate a supportive, action-oriented response.
-Include:
-- Acknowledge the blocker
-- Show empathy for the difficulty
-- Offer to help or escalate if needed
-- Ask if there's anything specific you can do`,
-
-  [MessageIntent.REPORT_COMPLETION]: `The user completed the task! Generate a celebratory response.
-Include:
-- Congratulate them
-- Thank them for their work
-- Confirm the task will be marked complete
-- Keep it warm and appreciative`,
-
-  [MessageIntent.REQUEST_HELP]: `The user needs help. Generate a supportive response.
-Include:
-- Acknowledge their request
-- Offer to connect them with resources or people
-- Show willingness to help
-- Ask for specifics if needed`,
-
-  [MessageIntent.REQUEST_EXTENSION]: `The user requested a deadline extension. Generate an understanding response.
-Include:
-- Acknowledge their request
-- Note the requested timeline
-- Let them know you'll look into it
-- Be supportive`,
 
   [MessageIntent.GENERAL_QUESTION]: `The user has a general question. Generate a helpful response.
 Include:

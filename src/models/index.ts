@@ -61,25 +61,6 @@ export interface Task {
   updatedAt: Date;
 }
 
-export enum FollowUpType {
-  HALF_TIME = 'half_time',
-  NEAR_DEADLINE = 'near_deadline',
-}
-
-export interface FollowUp {
-  id: string;
-  taskId: string;
-  type: FollowUpType;
-  scheduledAt: Date;
-  sentAt: Date | null;
-  responseReceived: boolean;
-  responseText: string | null;
-  responseIntent: string | null;
-  responseData: Record<string, unknown> | null;
-  responseAt: Date | null;
-  createdAt: Date;
-}
-
 export interface UserMapping {
   id: string;
   tenantId: string;
@@ -98,7 +79,6 @@ export interface GSheetTaskRow {
 export enum ConversationState {
   IDLE = 'idle',
   AWAITING_PROPOSITION_RESPONSE = 'awaiting_proposition_response',
-  AWAITING_FOLLOW_UP_RESPONSE = 'awaiting_follow_up_response',
   IN_CONVERSATION = 'in_conversation',
 }
 
@@ -110,7 +90,6 @@ export interface Conversation {
   state: ConversationState;
   activeTaskId: string | null;
   pendingPropositionTaskId: string | null;
-  pendingFollowUpId: string | null;
   lastInteractionAt: Date;
   createdAt: Date;
   updatedAt: Date;

@@ -10,7 +10,6 @@ interface ConversationRow {
   state: string;
   active_task_id: string | null;
   pending_proposition_task_id: string | null;
-  pending_follow_up_id: string | null;
   last_interaction_at: Date;
   created_at: Date;
   updated_at: Date;
@@ -38,7 +37,6 @@ function mapRowToConversation(row: unknown): Conversation {
     state: r.state as ConversationState,
     activeTaskId: r.active_task_id,
     pendingPropositionTaskId: r.pending_proposition_task_id,
-    pendingFollowUpId: r.pending_follow_up_id,
     lastInteractionAt: r.last_interaction_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -119,28 +117,6 @@ export class ConversationsRepository {
   }
 
   /**
-   * Find conversation awaiting response for a specific follow-up
-   */
-  async findByPendingFollowUp(
-    tenantId: string,
-    followUpId: string
-  ): Promise<Conversation | null> {
-    try {
-      const result = await query(
-        `SELECT * FROM conversations
-         WHERE tenant_id = $1
-         AND pending_follow_up_id = $2
-         AND state = $3`,
-        [tenantId, followUpId, ConversationState.AWAITING_FOLLOW_UP_RESPONSE]
-      );
-      return result.rows[0] ? mapRowToConversation(result.rows[0]) : null;
-    } catch (error) {
-      logger.error('Failed to find conversation by pending follow-up', { error, tenantId, followUpId });
-      throw error;
-    }
-  }
-
-  /**
    * Find stale conversations that should be reset to idle
    */
   async findStaleConversations(tenantId: string, olderThan: Date): Promise<Conversation[]> {
@@ -169,14 +145,13 @@ export class ConversationsRepository {
     state?: ConversationState;
     activeTaskId?: string;
     pendingPropositionTaskId?: string;
-    pendingFollowUpId?: string;
   }): Promise<Conversation> {
     try {
       const result = await query(
         `INSERT INTO conversations (
           tenant_id, slack_user_id, slack_channel_id, state,
-          active_task_id, pending_proposition_task_id, pending_follow_up_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          active_task_id, pending_proposition_task_id
+        ) VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *`,
         [
           conversation.tenantId,
@@ -185,7 +160,6 @@ export class ConversationsRepository {
           conversation.state || ConversationState.IDLE,
           conversation.activeTaskId || null,
           conversation.pendingPropositionTaskId || null,
-          conversation.pendingFollowUpId || null,
         ]
       );
       return mapRowToConversation(result.rows[0]);
@@ -205,7 +179,6 @@ export class ConversationsRepository {
       slackChannelId?: string;
       activeTaskId?: string | null;
       pendingPropositionTaskId?: string | null;
-      pendingFollowUpId?: string | null;
       lastInteractionAt?: Date;
     }
   ): Promise<Conversation | null> {
@@ -252,7 +225,6 @@ export class ConversationsRepository {
           state = $1,
           active_task_id = NULL,
           pending_proposition_task_id = NULL,
-          pending_follow_up_id = NULL,
           last_interaction_at = CURRENT_TIMESTAMP
          WHERE id = $2
          RETURNING *`,

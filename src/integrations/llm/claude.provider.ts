@@ -333,8 +333,6 @@ export class ClaudeProvider extends BaseLLMProvider {
 
     if (context.conversation.state === ConversationState.AWAITING_PROPOSITION_RESPONSE) {
       parts.push('User is responding to a task assignment request.');
-    } else if (context.conversation.state === ConversationState.AWAITING_FOLLOW_UP_RESPONSE) {
-      parts.push('User is responding to a progress check-in.');
     }
 
     return parts.join(' ');
@@ -398,50 +396,6 @@ export class ClaudeProvider extends BaseLLMProvider {
             type: SuggestedActionType.DECLINE_TASK,
             taskId,
             metadata: intent.extractedData,
-          });
-        }
-        break;
-
-      case MessageIntent.REPORT_BLOCKER:
-        if (taskId) {
-          actions.push({
-            type: SuggestedActionType.NOTIFY_ADMIN,
-            taskId,
-            metadata: {
-              blockerDetails: intent.extractedData,
-            },
-          });
-        }
-        break;
-
-      case MessageIntent.REPORT_COMPLETION:
-        if (taskId) {
-          actions.push({
-            type: SuggestedActionType.UPDATE_TASK_STATUS,
-            taskId,
-            metadata: { status: 'completed' },
-          });
-        }
-        break;
-
-      case MessageIntent.REQUEST_HELP:
-        if (taskId) {
-          actions.push({
-            type: SuggestedActionType.ESCALATE,
-            taskId,
-            metadata: intent.extractedData,
-          });
-        }
-        break;
-
-      case MessageIntent.REQUEST_EXTENSION:
-        if (taskId) {
-          actions.push({
-            type: SuggestedActionType.NOTIFY_ADMIN,
-            taskId,
-            metadata: {
-              extensionRequest: intent.extractedData,
-            },
           });
         }
         break;

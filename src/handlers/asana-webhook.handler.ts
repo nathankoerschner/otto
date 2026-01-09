@@ -5,11 +5,9 @@ import { SlackBot } from '../integrations/slack';
 import { TenantManagerService } from '../services/tenant-manager.service';
 import { TaskAssignmentService } from '../services/task-assignment.service';
 import { UserMatchingService } from '../services/user-matching.service';
-import { FollowUpService } from '../services/follow-up.service';
 import { ConversationContextService } from '../services/conversation-context.service';
 import { ConversationsRepository } from '../db/repositories/conversations.repository';
 import { TasksRepository } from '../db/repositories/tasks.repository';
-import { FollowUpsRepository } from '../db/repositories/follow-ups.repository';
 
 interface AsanaWebhookEvent {
   resource?: {
@@ -37,22 +35,18 @@ export function registerAsanaWebhookHandler(
   // Initialize repositories
   const conversationsRepo = new ConversationsRepository();
   const tasksRepo = new TasksRepository();
-  const followUpsRepo = new FollowUpsRepository();
 
   // Initialize services
   const userMatchingService = new UserMatchingService(slackBot, asanaClient, tenantManager);
-  const followUpService = new FollowUpService(slackBot, asanaClient, tenantManager);
   const conversationContextService = new ConversationContextService(
     conversationsRepo,
-    tasksRepo,
-    followUpsRepo
+    tasksRepo
   );
   const taskAssignmentService = new TaskAssignmentService(
     slackBot,
     asanaClient,
     tenantManager,
     userMatchingService,
-    followUpService,
     conversationContextService
   );
 

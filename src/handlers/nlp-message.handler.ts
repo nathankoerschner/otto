@@ -2,9 +2,7 @@ import { SayFn } from '@slack/bolt';
 import { ILLMService } from '../integrations/llm';
 import { ConversationContextService } from '../services/conversation-context.service';
 import { TaskAssignmentService } from '../services/task-assignment.service';
-import { FollowUpService } from '../services/follow-up.service';
-import { TasksRepository } from '../db/repositories/tasks.repository';
-import { ConversationState, TaskStatus } from '../models';
+import { ConversationState } from '../models';
 import {
   IncomingMessage,
   MessageIntent,
@@ -23,9 +21,7 @@ export class NLPMessageHandler {
   constructor(
     private llmService: ILLMService,
     private contextService: ConversationContextService,
-    private taskAssignmentService: TaskAssignmentService,
-    private followUpService: FollowUpService,
-    private tasksRepo: TasksRepository
+    private taskAssignmentService: TaskAssignmentService
   ) {}
 
   /**
@@ -196,30 +192,6 @@ export class NLPMessageHandler {
           return outcome;
         }
 
-        case MessageIntent.REPORT_COMPLETION: {
-          await this.tasksRepo.updateStatus(taskId, TaskStatus.COMPLETED);
-          logger.info('Task marked complete via NLP', { taskId, userId: message.userId });
-          return { action: 'update_task_status', success: true };
-        }
-
-        case MessageIntent.REPORT_BLOCKER: {
-          await this.notifyAdmin(message.tenantId, taskId, { blockerDetails: intent.extractedData });
-          logger.info('Admin notified of blocker via NLP', { taskId });
-          return { action: 'notify_admin', success: true };
-        }
-
-        case MessageIntent.REQUEST_HELP: {
-          await this.escalateTask(message.tenantId, taskId, intent.extractedData);
-          logger.info('Task escalated via NLP', { taskId });
-          return { action: 'escalate', success: true };
-        }
-
-        case MessageIntent.REQUEST_EXTENSION: {
-          await this.notifyAdmin(message.tenantId, taskId, { extensionRequest: intent.extractedData });
-          logger.info('Extension request sent to admin via NLP', { taskId });
-          return { action: 'notify_admin', success: true };
-        }
-
         default:
           // No action needed for other intents (questions, greetings, etc.)
           return undefined;
@@ -260,10 +232,6 @@ export class NLPMessageHandler {
       clarificationMessage =
         "I'm not quite sure how to interpret your response. Would you like to take on this task? " +
         "You can say 'yes' to accept, 'no' to decline, or ask me a question about the task.";
-    } else if (context.conversation.state === ConversationState.AWAITING_FOLLOW_UP_RESPONSE) {
-      clarificationMessage =
-        "Thanks for your update! Could you clarify - how's the task going? " +
-        "Let me know if you're on track, blocked, or if you've completed it.";
     } else {
       clarificationMessage =
         "I'm not sure what you're asking. You can:\n" +
@@ -297,15 +265,6 @@ export class NLPMessageHandler {
       MessageIntent.DECLINE_TASK,
     ];
 
-    // Intents that complete a follow-up response
-    const followUpCompletingIntents = [
-      MessageIntent.STATUS_UPDATE,
-      MessageIntent.REPORT_BLOCKER,
-      MessageIntent.REPORT_COMPLETION,
-      MessageIntent.REQUEST_HELP,
-      MessageIntent.REQUEST_EXTENSION,
-    ];
-
     if (propositionCompletingIntents.includes(intent)) {
       // Task claimed or declined - reset to idle
       await this.contextService.updateContext(conversationId, {
@@ -313,27 +272,6 @@ export class NLPMessageHandler {
         pendingPropositionTaskId: null,
         activeTaskId: intent === MessageIntent.ACCEPT_TASK ? taskContext?.task.id : null,
       });
-    } else if (followUpCompletingIntents.includes(intent)) {
-      // Follow-up response recorded
-      if (taskContext?.task.id) {
-        await this.followUpService.recordFollowUpResponse(
-          taskContext.task.id,
-          context.messages[context.messages.length - 1]?.content || ''
-        );
-      }
-
-      // If task completed, reset to idle; otherwise stay in conversation
-      if (intent === MessageIntent.REPORT_COMPLETION) {
-        await this.contextService.updateContext(conversationId, {
-          state: ConversationState.IDLE,
-          pendingFollowUpId: null,
-        });
-      } else {
-        await this.contextService.updateContext(conversationId, {
-          state: ConversationState.IN_CONVERSATION,
-          pendingFollowUpId: null,
-        });
-      }
     } else if (intent === MessageIntent.ASK_QUESTION || intent === MessageIntent.REQUEST_MORE_INFO) {
       // User asking questions - stay in current state but mark as in conversation
       // IMPORTANT: Preserve the task ID so we maintain context about which task we're discussing
@@ -343,50 +281,5 @@ export class NLPMessageHandler {
       });
     }
     // For other intents (greeting, help, unknown), don't change state
-  }
-
-  /**
-   * Notify admin about an issue with a task
-   */
-  private async notifyAdmin(
-    tenantId: string,
-    taskId: string,
-    metadata?: Record<string, unknown>
-  ): Promise<void> {
-    try {
-      const task = await this.tasksRepo.findById(taskId);
-      if (!task) return;
-
-      // Get admin user ID from tenant
-      // Note: This would need to be implemented in TenantManagerService
-      // For now, just log the notification
-      logger.info('Admin notification queued', {
-        tenantId,
-        taskId,
-        metadata,
-      });
-    } catch (error) {
-      logger.error('Failed to notify admin', { error, tenantId, taskId });
-    }
-  }
-
-  /**
-   * Escalate a task issue
-   */
-  private async escalateTask(
-    tenantId: string,
-    taskId: string,
-    metadata?: Record<string, unknown>
-  ): Promise<void> {
-    try {
-      logger.info('Task escalation queued', {
-        tenantId,
-        taskId,
-        metadata,
-      });
-      // Escalation logic would be implemented here
-    } catch (error) {
-      logger.error('Failed to escalate task', { error, tenantId, taskId });
-    }
   }
 }

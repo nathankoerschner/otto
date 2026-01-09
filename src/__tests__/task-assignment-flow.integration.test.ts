@@ -32,12 +32,6 @@ const mockConversationsRepoFns = {
   resetToIdle: jest.fn(),
 };
 
-const mockFollowUpsRepoFns = {
-  findById: jest.fn(),
-  findByTaskId: jest.fn(),
-  create: jest.fn(),
-};
-
 // Mock modules with module-scoped objects
 jest.mock('../integrations/sheets', () => ({
   GoogleSheetsClient: jest.fn().mockImplementation(() => mockSheetsFns),
@@ -51,14 +45,9 @@ jest.mock('../db/repositories/conversations.repository', () => ({
   ConversationsRepository: jest.fn().mockImplementation(() => mockConversationsRepoFns),
 }));
 
-jest.mock('../db/repositories/follow-ups.repository', () => ({
-  FollowUpsRepository: jest.fn().mockImplementation(() => mockFollowUpsRepoFns),
-}));
-
 // Import AFTER mocking
 import { TaskAssignmentService } from '../services/task-assignment.service';
 import { UserMatchingService } from '../services/user-matching.service';
-import { FollowUpService } from '../services/follow-up.service';
 import { ConversationContextService } from '../services/conversation-context.service';
 
 describe('Task Assignment Flow Integration', () => {
@@ -120,7 +109,6 @@ describe('Task Assignment Flow Integration', () => {
   let taskAssignmentService: TaskAssignmentService;
   let conversationContextService: ConversationContextService;
   let userMatchingService: UserMatchingService;
-  let followUpService: FollowUpService;
 
   beforeEach(() => {
     // Reset all mocks
@@ -216,29 +204,13 @@ describe('Task Assignment Flow Integration', () => {
     mockConversationsRepoFns.addMessage.mockResolvedValue({});
     mockConversationsRepoFns.resetToIdle.mockResolvedValue(null);
 
-    // Configure mock follow-ups repo
-    mockFollowUpsRepoFns.findById.mockResolvedValue(null);
-    mockFollowUpsRepoFns.findByTaskId.mockResolvedValue([]);
-    mockFollowUpsRepoFns.create.mockImplementation(async (data: any) => ({
-      id: `followup-${Date.now()}`,
-      ...data,
-      createdAt: new Date(),
-    }));
-
     // Initialize services with mocks
     conversationContextService = new ConversationContextService(
       mockConversationsRepoFns as any,
-      mockTasksRepoFns as any,
-      mockFollowUpsRepoFns as any
+      mockTasksRepoFns as any
     );
 
     userMatchingService = new UserMatchingService(
-      mockSlackBot as any,
-      mockAsanaClient as any,
-      mockTenantManager as any
-    );
-
-    followUpService = new FollowUpService(
       mockSlackBot as any,
       mockAsanaClient as any,
       mockTenantManager as any
@@ -249,7 +221,6 @@ describe('Task Assignment Flow Integration', () => {
       mockAsanaClient as any,
       mockTenantManager as any,
       userMatchingService,
-      followUpService,
       conversationContextService
     );
   });

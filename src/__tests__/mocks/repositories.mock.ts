@@ -1,7 +1,7 @@
 /**
  * Mock database repositories for testing
  */
-import { Task, TaskStatus, Tenant, FollowUp, FollowUpType, Conversation, ConversationMessage, ConversationState, TaskLLMContext } from '../../models';
+import { Task, TaskStatus, Tenant, Conversation, ConversationMessage, ConversationState, TaskLLMContext } from '../../models';
 
 // Helper to generate UUIDs
 const generateId = () => `test-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -120,43 +120,6 @@ export const createMockTenantsRepo = () => {
   };
 };
 
-export const createMockFollowUpsRepo = () => {
-  const followUps = new Map<string, FollowUp>();
-
-  return {
-    followUps,
-
-    findById: jest.fn(async (id: string) => followUps.get(id) || null),
-
-    findByTaskId: jest.fn(async (taskId: string) => {
-      return Array.from(followUps.values()).filter(f => f.taskId === taskId);
-    }),
-
-    create: jest.fn(async (data: Partial<FollowUp>) => {
-      const followUp: FollowUp = {
-        id: generateId(),
-        taskId: data.taskId || '',
-        type: data.type || FollowUpType.HALF_TIME,
-        scheduledAt: data.scheduledAt || new Date(),
-        sentAt: data.sentAt ?? null,
-        responseReceived: data.responseReceived ?? false,
-        responseText: data.responseText ?? null,
-        responseIntent: data.responseIntent ?? null,
-        responseData: data.responseData ?? null,
-        responseAt: data.responseAt ?? null,
-        createdAt: new Date(),
-      };
-      followUps.set(followUp.id, followUp);
-      return followUp;
-    }),
-
-    reset() {
-      followUps.clear();
-      jest.clearAllMocks();
-    },
-  };
-};
-
 export const createMockConversationsRepo = () => {
   const conversations = new Map<string, Conversation>();
   const messages = new Map<string, ConversationMessage[]>();
@@ -183,7 +146,6 @@ export const createMockConversationsRepo = () => {
         state: data.state || ConversationState.IDLE,
         activeTaskId: data.activeTaskId ?? null,
         pendingPropositionTaskId: data.pendingPropositionTaskId ?? null,
-        pendingFollowUpId: data.pendingFollowUpId ?? null,
         lastInteractionAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -228,7 +190,6 @@ export const createMockConversationsRepo = () => {
       if (!conv) return null;
       conv.state = ConversationState.IDLE;
       conv.pendingPropositionTaskId = null;
-      conv.pendingFollowUpId = null;
       return conv;
     }),
 
@@ -242,5 +203,4 @@ export const createMockConversationsRepo = () => {
 
 export type MockTasksRepo = ReturnType<typeof createMockTasksRepo>;
 export type MockTenantsRepo = ReturnType<typeof createMockTenantsRepo>;
-export type MockFollowUpsRepo = ReturnType<typeof createMockFollowUpsRepo>;
 export type MockConversationsRepo = ReturnType<typeof createMockConversationsRepo>;

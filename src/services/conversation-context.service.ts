@@ -1,12 +1,10 @@
 import { ConversationsRepository } from '../db/repositories/conversations.repository';
 import { TasksRepository } from '../db/repositories/tasks.repository';
-import { FollowUpsRepository } from '../db/repositories/follow-ups.repository';
 import {
   Conversation,
   ConversationMessage,
   ConversationState,
   Task,
-  FollowUp,
 } from '../models';
 import { ConversationContext, TaskContext } from '../types/nlp.types';
 import { config } from '../config';
@@ -18,8 +16,7 @@ import { logger } from '../utils/logger';
 export class ConversationContextService {
   constructor(
     private conversationsRepo: ConversationsRepository,
-    private tasksRepo: TasksRepository,
-    private followUpsRepo: FollowUpsRepository
+    private tasksRepo: TasksRepository
   ) {}
 
   /**
@@ -56,20 +53,10 @@ export class ConversationContextService {
       activeTask = (await this.tasksRepo.findById(conversation.activeTaskId)) || undefined;
     }
 
-    // Get pending follow-up if set
-    let pendingFollowUp: FollowUp | undefined;
-    if (conversation.pendingFollowUpId) {
-      const followUps = await this.followUpsRepo.findByTaskId(
-        conversation.activeTaskId || ''
-      );
-      pendingFollowUp = followUps.find(f => f.id === conversation.pendingFollowUpId);
-    }
-
     return {
       conversation,
       messages,
       activeTask,
-      pendingFollowUp,
     };
   }
 
@@ -82,7 +69,6 @@ export class ConversationContextService {
       state: ConversationState;
       activeTaskId: string | null;
       pendingPropositionTaskId: string | null;
-      pendingFollowUpId: string | null;
     }>
   ): Promise<Conversation | null> {
     return this.conversationsRepo.update(conversationId, {
@@ -124,7 +110,7 @@ export class ConversationContextService {
    *
    * Priority:
    * 1. If there's a pending proposition, use that task
-   * 2. If there's an active task from a follow-up, use that
+   * 2. If there's an active task in conversation, use that (preserves context during Q&A)
    * 3. If user has only one active task, use that
    * 4. Otherwise, return null (ambiguous)
    */
@@ -150,15 +136,7 @@ export class ConversationContextService {
       return this.tasksRepo.findById(conversation.pendingPropositionTaskId);
     }
 
-    // 2. Check for active task from follow-up
-    if (
-      conversation.state === ConversationState.AWAITING_FOLLOW_UP_RESPONSE &&
-      conversation.activeTaskId
-    ) {
-      return this.tasksRepo.findById(conversation.activeTaskId);
-    }
-
-    // 3. Check for active task when in conversation (preserves context during Q&A)
+    // 2. Check for active task when in conversation (preserves context during Q&A)
     if (
       conversation.state === ConversationState.IN_CONVERSATION &&
       conversation.activeTaskId
@@ -166,13 +144,13 @@ export class ConversationContextService {
       return this.tasksRepo.findById(conversation.activeTaskId);
     }
 
-    // 4. Check if user has only one active task
+    // 3. Check if user has only one active task
     const userTasks = await this.tasksRepo.findByOwner(tenantId, slackUserId);
     if (userTasks.length === 1) {
       return userTasks[0];
     }
 
-    // 5. Ambiguous - user has multiple tasks or no tasks
+    // 4. Ambiguous - user has multiple tasks or no tasks
     return null;
   }
 
@@ -185,17 +163,10 @@ export class ConversationContextService {
       return null;
     }
 
-    const followUps = await this.followUpsRepo.findByTaskId(taskId);
-    const lastFollowUpSent = followUps
-      .filter(f => f.sentAt)
-      .sort((a, b) => (b.sentAt?.getTime() || 0) - (a.sentAt?.getTime() || 0))[0];
-
     return {
       task,
       asanaTaskName: '', // Will be populated by the handler with Asana data
       asanaTaskUrl: task.asanaTaskUrl,
-      followUps,
-      lastFollowUpSent,
     };
   }
 
@@ -227,38 +198,6 @@ export class ConversationContextService {
       state: ConversationState.AWAITING_PROPOSITION_RESPONSE,
       pendingPropositionTaskId: taskId,
       activeTaskId: taskId,
-    });
-  }
-
-  /**
-   * Set conversation to await follow-up response
-   */
-  async setAwaitingFollowUpResponse(
-    tenantId: string,
-    slackUserId: string,
-    taskId: string,
-    followUpId: string
-  ): Promise<Conversation | null> {
-    let conversation = await this.conversationsRepo.findByUserAndTenant(
-      tenantId,
-      slackUserId
-    );
-
-    if (!conversation) {
-      conversation = await this.conversationsRepo.create({
-        tenantId,
-        slackUserId,
-        state: ConversationState.AWAITING_FOLLOW_UP_RESPONSE,
-        activeTaskId: taskId,
-        pendingFollowUpId: followUpId,
-      });
-      return conversation;
-    }
-
-    return this.conversationsRepo.update(conversation.id, {
-      state: ConversationState.AWAITING_FOLLOW_UP_RESPONSE,
-      activeTaskId: taskId,
-      pendingFollowUpId: followUpId,
     });
   }
 
