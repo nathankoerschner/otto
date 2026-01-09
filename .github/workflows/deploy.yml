@@ -58,6 +58,27 @@ jobs:
             --service-account ${{ secrets.GCP_SERVICE_ACCOUNT }} \
             --allow-unauthenticated \
             --port 3000 \
+            --add-cloudsql-instances ${{ env.GCP_PROJECT }}:${{ env.GCP_REGION }}:otto-db \
+            --set-env-vars "NODE_ENV=production" \
+            --set-env-vars "DB_HOST=/cloudsql/${{ env.GCP_PROJECT }}:${{ env.GCP_REGION }}:otto-db" \
+            --set-env-vars "DB_NAME=otto" \
+            --set-env-vars "DB_USER=postgres" \
+            --set-env-vars "DB_SSL=false" \
+            --set-env-vars "GCP_PROJECT_ID=${{ env.GCP_PROJECT }}" \
+            --set-env-vars "GCP_SECRET_MANAGER_ENABLED=true" \
+            --set-env-vars "SHEETS_SERVICE_ACCOUNT_EMAIL=otto-service-account@${{ env.GCP_PROJECT }}.iam.gserviceaccount.com" \
+            --set-env-vars "LLM_PROVIDER=claude" \
+            --set-secrets "DB_PASSWORD=db-password:latest" \
+            --set-secrets "SLACK_SIGNING_SECRET=slack-signing-secret:latest" \
+            --set-secrets "SLACK_BOT_TOKEN=slack-bot-token:latest" \
+            --set-secrets "SLACK_APP_TOKEN=slack-app-token:latest" \
+            --set-secrets "ASANA_API_TOKEN=asana-api-token:latest" \
+            --set-secrets "SHEETS_PRIVATE_KEY=sheets-private-key:latest" \
+            --set-secrets "LLM_API_KEY=llm-api-key:latest" \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 300 \
+            --max-instances 10 \
             --quiet
 
       - name: Get Cloud Run URL
