@@ -3,7 +3,6 @@ import { ILLMService } from '../integrations/llm';
 import { ConversationContextService } from '../services/conversation-context.service';
 import { TaskAssignmentService } from '../services/task-assignment.service';
 import { FollowUpService } from '../services/follow-up.service';
-import { AsanaClient } from '../integrations/asana';
 import { TasksRepository } from '../db/repositories/tasks.repository';
 import { ConversationState, TaskStatus } from '../models';
 import {
@@ -26,7 +25,6 @@ export class NLPMessageHandler {
     private contextService: ConversationContextService,
     private taskAssignmentService: TaskAssignmentService,
     private followUpService: FollowUpService,
-    private asanaClient: AsanaClient,
     private tasksRepo: TasksRepository
   ) {}
 

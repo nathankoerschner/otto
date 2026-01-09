@@ -14,6 +14,7 @@ interface TaskRow {
   claimed_at: Date | null;
   proposition_message_ts: string | null;
   proposition_sent_at: Date | null;
+  context: unknown | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -32,6 +33,7 @@ function mapRowToTask(row: unknown): Task {
     claimedAt: r.claimed_at,
     propositionMessageTs: r.proposition_message_ts,
     propositionSentAt: r.proposition_sent_at,
+    context: r.context as Task['context'],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };

@@ -51,7 +51,6 @@ export function registerSlackEventHandlers(
     conversationContextService,
     taskAssignmentService,
     followUpService,
-    asanaClient,
     tasksRepo
   );
   logger.info('NLP message handler initialized');
