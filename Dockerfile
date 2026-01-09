@@ -17,7 +17,7 @@ COPY src ./src
 RUN bun run build
 
 # Production stage
-FROM oven/bun:1-slim
+FROM oven/bun:1
 
 WORKDIR /app
 
@@ -31,8 +31,8 @@ RUN bun install --production --frozen-lockfile
 COPY --from=builder /app/dist ./dist
 
 # Create non-root user
-RUN addgroup --gid 1001 --system nodejs && \
-    adduser --system --uid 1001 nodejs
+RUN groupadd --gid 1001 --system nodejs && \
+    useradd --system --uid 1001 --gid nodejs nodejs
 
 # Change ownership
 RUN chown -R nodejs:nodejs /app
