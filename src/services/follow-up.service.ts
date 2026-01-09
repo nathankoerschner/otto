@@ -74,21 +74,21 @@ export class FollowUpService {
   }
 
   /**
-   * Process due follow-ups (run periodically)
+   * Process due follow-ups for a specific tenant (run periodically)
    */
-  async processDueFollowUps(): Promise<void> {
+  async processDueFollowUps(tenantId: string): Promise<void> {
     try {
-      logger.info('Processing due follow-ups');
+      logger.info('Processing due follow-ups', { tenantId });
 
-      // 1. Query follow-ups that are due
-      const dueFollowUps = await this.followUpsRepo.findDueFollowUps();
+      // 1. Query follow-ups that are due for this tenant
+      const dueFollowUps = await this.followUpsRepo.findDueFollowUps(tenantId);
 
       if (dueFollowUps.length === 0) {
-        logger.debug('No follow-ups due');
+        logger.debug('No follow-ups due', { tenantId });
         return;
       }
 
-      logger.info(`Found ${dueFollowUps.length} due follow-ups`);
+      logger.info(`Found ${dueFollowUps.length} due follow-ups`, { tenantId });
 
       // 2. Send follow-up messages
       for (const followUp of dueFollowUps) {
@@ -96,11 +96,11 @@ export class FollowUpService {
           await this.sendFollowUp(followUp.taskId, followUp.type);
           await this.followUpsRepo.markAsSent(followUp.id);
         } catch (error) {
-          logger.error('Error sending follow-up', { error, followUpId: followUp.id });
+          logger.error('Error sending follow-up', { error, followUpId: followUp.id, tenantId });
         }
       }
     } catch (error) {
-      logger.error('Error processing due follow-ups', { error });
+      logger.error('Error processing due follow-ups', { error, tenantId });
     }
   }
 

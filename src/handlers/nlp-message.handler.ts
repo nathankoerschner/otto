@@ -127,7 +127,7 @@ export class NLPMessageHandler {
 
       // Send a friendly error message
       await say({
-        text: "I'm having trouble processing your message right now. Please try again or use the buttons on my messages.",
+        text: "I'm having trouble processing your message right now. Please hold.",
         thread_ts: message.threadTs,
       });
     }

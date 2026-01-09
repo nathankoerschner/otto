@@ -143,17 +143,18 @@ export class ConversationsRepository {
   /**
    * Find stale conversations that should be reset to idle
    */
-  async findStaleConversations(olderThan: Date): Promise<Conversation[]> {
+  async findStaleConversations(tenantId: string, olderThan: Date): Promise<Conversation[]> {
     try {
       const result = await query(
         `SELECT * FROM conversations
-         WHERE state != $1
-         AND last_interaction_at < $2`,
-        [ConversationState.IDLE, olderThan]
+         WHERE tenant_id = $1
+         AND state != $2
+         AND last_interaction_at < $3`,
+        [tenantId, ConversationState.IDLE, olderThan]
       );
       return result.rows.map(mapRowToConversation);
     } catch (error) {
-      logger.error('Failed to find stale conversations', { error, olderThan });
+      logger.error('Failed to find stale conversations', { error, tenantId, olderThan });
       throw error;
     }
   }
@@ -337,17 +338,21 @@ export class ConversationsRepository {
   }
 
   /**
-   * Delete messages older than a certain date
+   * Delete messages older than a certain date for a specific tenant
    */
-  async deleteOldMessages(olderThan: Date): Promise<number> {
+  async deleteOldMessages(tenantId: string, olderThan: Date): Promise<number> {
     try {
       const result = await query(
-        'DELETE FROM conversation_messages WHERE created_at < $1',
-        [olderThan]
+        `DELETE FROM conversation_messages
+         WHERE conversation_id IN (
+           SELECT id FROM conversations WHERE tenant_id = $1
+         )
+         AND created_at < $2`,
+        [tenantId, olderThan]
       );
       return result.rowCount || 0;
     } catch (error) {
-      logger.error('Failed to delete old messages', { error, olderThan });
+      logger.error('Failed to delete old messages', { error, tenantId, olderThan });
       throw error;
     }
   }

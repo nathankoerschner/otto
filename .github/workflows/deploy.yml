@@ -73,6 +73,7 @@ jobs:
             --set-secrets "SLACK_BOT_TOKEN=slack-bot-token:latest" \
             --set-secrets "SLACK_APP_TOKEN=slack-app-token:latest" \
             --set-secrets "ASANA_API_TOKEN=asana-api-token:latest" \
+            --set-secrets "ASANA_WEBHOOK_SECRET=asana-webhook-secret:latest" \
             --set-secrets "SHEETS_PRIVATE_KEY=sheets-private-key:latest" \
             --set-secrets "LLM_API_KEY=llm-api-key:latest" \
             --memory 512Mi \

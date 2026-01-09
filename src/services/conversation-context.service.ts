@@ -270,13 +270,13 @@ export class ConversationContextService {
   }
 
   /**
-   * Expire stale conversations that haven't had interaction within TTL
+   * Expire stale conversations for a specific tenant that haven't had interaction within TTL
    */
-  async expireStaleContexts(): Promise<number> {
+  async expireStaleContexts(tenantId: string): Promise<number> {
     const ttlHours = config.nlp.conversationTtlHours;
     const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000);
 
-    const staleConversations = await this.conversationsRepo.findStaleConversations(cutoff);
+    const staleConversations = await this.conversationsRepo.findStaleConversations(tenantId, cutoff);
 
     let resetCount = 0;
     for (const conversation of staleConversations) {
@@ -287,12 +287,13 @@ export class ConversationContextService {
         logger.error('Failed to reset stale conversation', {
           error,
           conversationId: conversation.id,
+          tenantId,
         });
       }
     }
 
     if (resetCount > 0) {
-      logger.info('Reset stale conversations', { count: resetCount });
+      logger.info('Reset stale conversations', { count: resetCount, tenantId });
     }
 
     return resetCount;

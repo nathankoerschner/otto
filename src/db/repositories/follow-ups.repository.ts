@@ -60,29 +60,34 @@ export class FollowUpsRepository {
     }
   }
 
-  async findDueFollowUps(before: Date = new Date()): Promise<FollowUp[]> {
+  async findDueFollowUps(tenantId: string, before: Date = new Date()): Promise<FollowUp[]> {
     try {
       const result = await query(
-        'SELECT * FROM follow_ups WHERE scheduled_at <= $1 AND sent_at IS NULL ORDER BY scheduled_at ASC',
-        [before]
+        `SELECT f.* FROM follow_ups f
+         INNER JOIN tasks t ON f.task_id = t.id
+         WHERE t.tenant_id = $1 AND f.scheduled_at <= $2 AND f.sent_at IS NULL
+         ORDER BY f.scheduled_at ASC`,
+        [tenantId, before]
       );
       return result.rows.map(mapRowToFollowUp);
     } catch (error) {
-      logger.error('Failed to find due follow-ups', { error, before });
+      logger.error('Failed to find due follow-ups', { error, tenantId, before });
       throw error;
     }
   }
 
-  async findUnresponsiveFollowUps(afterHours: number = 24): Promise<FollowUp[]> {
+  async findUnresponsiveFollowUps(tenantId: string, afterHours: number = 24): Promise<FollowUp[]> {
     try {
       const cutoffTime = new Date(Date.now() - afterHours * 60 * 60 * 1000);
       const result = await query(
-        'SELECT * FROM follow_ups WHERE sent_at IS NOT NULL AND sent_at <= $1 AND response_received = FALSE',
-        [cutoffTime]
+        `SELECT f.* FROM follow_ups f
+         INNER JOIN tasks t ON f.task_id = t.id
+         WHERE t.tenant_id = $1 AND f.sent_at IS NOT NULL AND f.sent_at <= $2 AND f.response_received = FALSE`,
+        [tenantId, cutoffTime]
       );
       return result.rows.map(mapRowToFollowUp);
     } catch (error) {
-      logger.error('Failed to find unresponsive follow-ups', { error, afterHours });
+      logger.error('Failed to find unresponsive follow-ups', { error, tenantId, afterHours });
       throw error;
     }
   }

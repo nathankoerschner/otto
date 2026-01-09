@@ -125,14 +125,15 @@ export class TasksRepository {
     }
   }
 
-  async findAll(): Promise<Task[]> {
+  async findAllByTenant(tenantId: string): Promise<Task[]> {
     try {
       const result = await query(
-        'SELECT * FROM tasks ORDER BY created_at DESC'
+        'SELECT * FROM tasks WHERE tenant_id = $1 ORDER BY created_at DESC',
+        [tenantId]
       );
       return result.rows.map(mapRowToTask);
     } catch (error) {
-      logger.error('Failed to find all tasks', { error });
+      logger.error('Failed to find all tasks for tenant', { error, tenantId });
       throw error;
     }
   }
