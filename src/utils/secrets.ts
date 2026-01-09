@@ -98,3 +98,95 @@ export function clearSecretCache(): void {
   secretCache.clear();
   logger.debug('Secret cache cleared');
 }
+
+/**
+ * Create a new secret in GCP Secret Manager
+ */
+export async function createSecret(secretName: string, secretValue: string): Promise<void> {
+  try {
+    const client = getSecretClient();
+    const projectId = config.gcp?.projectId;
+
+    if (!projectId) {
+      throw new Error('GCP project ID not configured');
+    }
+
+    const parent = `projects/${projectId}`;
+
+    // Create the secret
+    await client.createSecret({
+      parent,
+      secretId: secretName,
+      secret: {
+        replication: {
+          automatic: {},
+        },
+      },
+    });
+
+    // Add the secret version with the value
+    const name = `projects/${projectId}/secrets/${secretName}`;
+    await client.addSecretVersion({
+      parent: name,
+      payload: {
+        data: Buffer.from(secretValue, 'utf8'),
+      },
+    });
+
+    // Clear cache for this secret
+    secretCache.delete(secretName);
+
+    logger.info('Secret created in GCP Secret Manager', { secretName });
+  } catch (error) {
+    logger.error('Failed to create secret in GCP Secret Manager', { error, secretName });
+    throw error;
+  }
+}
+
+/**
+ * Update an existing secret in GCP Secret Manager (add new version)
+ */
+export async function updateSecret(secretName: string, secretValue: string): Promise<void> {
+  try {
+    const client = getSecretClient();
+    const projectId = config.gcp?.projectId;
+
+    if (!projectId) {
+      throw new Error('GCP project ID not configured');
+    }
+
+    const name = `projects/${projectId}/secrets/${secretName}`;
+
+    // Add a new version to the existing secret
+    await client.addSecretVersion({
+      parent: name,
+      payload: {
+        data: Buffer.from(secretValue, 'utf8'),
+      },
+    });
+
+    // Clear cache for this secret
+    secretCache.delete(secretName);
+
+    logger.info('Secret updated in GCP Secret Manager', { secretName });
+  } catch (error) {
+    logger.error('Failed to update secret in GCP Secret Manager', { error, secretName });
+    throw error;
+  }
+}
+
+/**
+ * Create or update a secret in GCP Secret Manager
+ * Creates the secret if it doesn't exist, otherwise adds a new version
+ */
+export async function upsertSecret(secretName: string, secretValue: string): Promise<void> {
+  try {
+    // Try to get the secret first to check if it exists
+    await getSecret(secretName);
+    // If we get here, secret exists - update it
+    await updateSecret(secretName, secretValue);
+  } catch {
+    // Secret doesn't exist - create it
+    await createSecret(secretName, secretValue);
+  }
+}

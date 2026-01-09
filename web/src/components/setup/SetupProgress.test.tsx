@@ -4,28 +4,26 @@ import { SetupProgress } from './SetupProgress'
 
 describe('SetupProgress', () => {
   it('renders all step labels', () => {
-    render(<SetupProgress currentStep="workspace" />)
+    render(<SetupProgress currentStep="register" />)
 
-    expect(screen.getByText('Workspace')).toBeInTheDocument()
-    expect(screen.getByText('Slack')).toBeInTheDocument()
-    expect(screen.getByText('Asana')).toBeInTheDocument()
+    expect(screen.getByText('Register')).toBeInTheDocument()
+    expect(screen.getByText('Integrations')).toBeInTheDocument()
     expect(screen.getByText('Complete')).toBeInTheDocument()
   })
 
   describe('step indicators', () => {
     it('shows step numbers when not completed', () => {
-      render(<SetupProgress currentStep="workspace" />)
+      render(<SetupProgress currentStep="register" />)
 
       expect(screen.getByText('1')).toBeInTheDocument()
       expect(screen.getByText('2')).toBeInTheDocument()
       expect(screen.getByText('3')).toBeInTheDocument()
-      expect(screen.getByText('4')).toBeInTheDocument()
     })
 
     it('shows checkmark for completed steps', () => {
-      render(<SetupProgress currentStep="asana" />)
+      render(<SetupProgress currentStep="complete" />)
 
-      // Steps 1 and 2 (workspace and slack) are completed when on asana
+      // Steps 1 and 2 (register and tokens) are completed when on complete
       // The checkmark is rendered as an SVG, so we check for its presence
       const circles = document.querySelectorAll('.rounded-full')
 
@@ -36,25 +34,18 @@ describe('SetupProgress', () => {
   })
 
   describe('current step highlighting', () => {
-    it('highlights workspace as current when on workspace step', () => {
-      render(<SetupProgress currentStep="workspace" />)
+    it('highlights register as current when on register step', () => {
+      render(<SetupProgress currentStep="register" />)
 
-      const workspaceLabel = screen.getByText('Workspace')
-      expect(workspaceLabel).toHaveClass('font-medium', 'text-primary')
+      const registerLabel = screen.getByText('Register')
+      expect(registerLabel).toHaveClass('font-medium', 'text-primary')
     })
 
-    it('highlights slack as current when on slack step', () => {
-      render(<SetupProgress currentStep="slack" />)
+    it('highlights integrations as current when on tokens step', () => {
+      render(<SetupProgress currentStep="tokens" />)
 
-      const slackLabel = screen.getByText('Slack')
-      expect(slackLabel).toHaveClass('font-medium', 'text-primary')
-    })
-
-    it('highlights asana as current when on asana step', () => {
-      render(<SetupProgress currentStep="asana" />)
-
-      const asanaLabel = screen.getByText('Asana')
-      expect(asanaLabel).toHaveClass('font-medium', 'text-primary')
+      const tokensLabel = screen.getByText('Integrations')
+      expect(tokensLabel).toHaveClass('font-medium', 'text-primary')
     })
 
     it('highlights complete as current when on complete step', () => {
@@ -67,7 +58,7 @@ describe('SetupProgress', () => {
 
   describe('connector lines', () => {
     it('shows muted connectors for future steps', () => {
-      render(<SetupProgress currentStep="workspace" />)
+      render(<SetupProgress currentStep="register" />)
 
       const connectors = document.querySelectorAll('.h-0\\.5')
       // All connectors should be muted since we're on the first step
@@ -87,35 +78,33 @@ describe('SetupProgress', () => {
     })
 
     it('shows mixed connectors when partially complete', () => {
-      render(<SetupProgress currentStep="asana" />)
+      render(<SetupProgress currentStep="tokens" />)
 
       const connectors = document.querySelectorAll('.h-0\\.5')
-      // First two connectors should be primary (completed)
-      // Last connector should be muted (not yet completed)
+      // First connector should be primary (completed)
+      // Second connector should be muted (not yet completed)
       expect(connectors[0]).toHaveClass('bg-primary')
-      expect(connectors[1]).toHaveClass('bg-primary')
-      expect(connectors[2]).toHaveClass('bg-muted')
+      expect(connectors[1]).toHaveClass('bg-muted')
     })
   })
 
   describe('step circle styling', () => {
     it('applies border-primary to current step circle', () => {
-      render(<SetupProgress currentStep="slack" />)
+      render(<SetupProgress currentStep="tokens" />)
 
       const circles = document.querySelectorAll('.rounded-full')
-      // Second circle (slack) should have current styling
+      // Second circle (tokens) should have current styling
       expect(circles[1]).toHaveClass('border-primary')
       expect(circles[1]).not.toHaveClass('bg-primary')
     })
 
     it('applies muted styling to future step circles', () => {
-      render(<SetupProgress currentStep="workspace" />)
+      render(<SetupProgress currentStep="register" />)
 
       const circles = document.querySelectorAll('.rounded-full')
-      // Circles 2, 3, 4 should be muted (future steps)
+      // Circles 2 and 3 should be muted (future steps)
       expect(circles[1]).toHaveClass('border-muted')
       expect(circles[2]).toHaveClass('border-muted')
-      expect(circles[3]).toHaveClass('border-muted')
     })
   })
 })

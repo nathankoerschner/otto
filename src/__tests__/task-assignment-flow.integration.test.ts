@@ -71,8 +71,12 @@ describe('Task Assignment Flow Integration', () => {
     asanaWorkspaceId: 'workspace-456',
     asanaBotUserId: 'bot-user-789',
     asanaApiTokenSecretName: 'test-asana-token',
+    asanaProjectId: 'project-123',
     gsheetUrl: 'https://docs.google.com/spreadsheets/d/test-sheet',
     adminSlackUserId: 'admin-user-001',
+    adminEmail: 'admin@test.com',
+    adminFirebaseUid: 'firebase-uid-123',
+    setupCompleted: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

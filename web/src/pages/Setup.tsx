@@ -1,55 +1,43 @@
+import { useState } from 'react'
 import { Header, Footer } from '@/components/layout'
 import {
   SetupProgress,
   WorkspaceForm,
-  SlackConnect,
-  AsanaConnect,
+  TokensForm,
   SetupComplete,
 } from '@/components/setup'
-import { useSetupState } from '@/hooks'
-import { useSetupStatus } from '@/api/queries'
+import { useAuth } from '@/hooks'
+
+type SetupStep = 'register' | 'tokens' | 'complete'
 
 export function Setup() {
-  const {
-    step,
-    tenantId,
-    slackConnected,
-    asanaConnected,
-    setTenantId,
-    setSlackConnected,
-    setAsanaConnected,
-    nextStep,
-    reset,
-  } = useSetupState()
+  const { isAuthenticated, tenant, refreshTenant } = useAuth()
 
-  // Poll for OAuth completion when we have a tenantId
-  const { data: status } = useSetupStatus(tenantId)
-
-  // Update local state when status changes from polling
-  if (status) {
-    if (status.slackConnected && !slackConnected) {
-      setSlackConnected(true)
+  // Determine the current step based on auth state
+  function getCurrentStep(): SetupStep {
+    if (!isAuthenticated) {
+      return 'register'
     }
-    if (status.asanaConnected && !asanaConnected) {
-      setAsanaConnected(true)
+    if (!tenant?.setupCompleted) {
+      return 'tokens'
     }
+    return 'complete'
   }
 
-  function handleWorkspaceComplete(id: string) {
-    setTenantId(id)
-    nextStep()
+  const [step, setStep] = useState<SetupStep>(getCurrentStep)
+
+  function handleRegistrationComplete() {
+    setStep('tokens')
   }
 
-  function handleSlackComplete() {
-    nextStep()
-  }
-
-  function handleAsanaComplete() {
-    nextStep()
+  async function handleTokensComplete() {
+    await refreshTenant()
+    setStep('complete')
   }
 
   function handleReset() {
-    reset()
+    // Navigate to dashboard after reset
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -59,24 +47,12 @@ export function Setup() {
         <div className="container mx-auto max-w-2xl px-4">
           <SetupProgress currentStep={step} />
 
-          {step === 'workspace' && (
-            <WorkspaceForm onComplete={handleWorkspaceComplete} />
+          {step === 'register' && (
+            <WorkspaceForm onComplete={handleRegistrationComplete} />
           )}
 
-          {step === 'slack' && tenantId !== null && (
-            <SlackConnect
-              tenantId={tenantId}
-              isConnected={slackConnected}
-              onComplete={handleSlackComplete}
-            />
-          )}
-
-          {step === 'asana' && tenantId !== null && (
-            <AsanaConnect
-              tenantId={tenantId}
-              isConnected={asanaConnected}
-              onComplete={handleAsanaComplete}
-            />
+          {step === 'tokens' && (
+            <TokensForm onComplete={handleTokensComplete} />
           )}
 
           {step === 'complete' && <SetupComplete onReset={handleReset} />}

@@ -99,3 +99,13 @@ export const DashboardStatusSchema = z.object({
 })
 
 export type DashboardStatus = z.infer<typeof DashboardStatusSchema>
+
+// Setup status schema
+export const SetupStatusSchema = z.object({
+  tenantId: z.string(),
+  slackConnected: z.boolean(),
+  asanaConnected: z.boolean(),
+  isComplete: z.boolean(),
+})
+
+export type SetupStatus = z.infer<typeof SetupStatusSchema>

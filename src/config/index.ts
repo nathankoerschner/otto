@@ -61,6 +61,20 @@ export const config = {
     conversationTtlHours: parseInt(process.env.CONVERSATION_TTL_HOURS || '24', 10),
     maxConversationHistory: parseInt(process.env.MAX_CONVERSATION_HISTORY || '10', 10),
   },
+
+  // Firebase Admin SDK
+  firebase: {
+    projectId: process.env.FIREBASE_PROJECT_ID || '',
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
+  },
+
+  // Session settings
+  session: {
+    cookieName: 'otto_session',
+    maxAgeDays: parseInt(process.env.SESSION_MAX_AGE_DAYS || '7', 10),
+    secure: process.env.NODE_ENV === 'production',
+  },
 } as const;
 
 export type Config = typeof config;

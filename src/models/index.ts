@@ -26,8 +26,12 @@ export interface Tenant {
   asanaWorkspaceId: string;
   asanaBotUserId: string;
   asanaApiTokenSecretName: string;
+  asanaProjectId: string | null;
   gsheetUrl: string;
   adminSlackUserId: string;
+  adminEmail: string | null;
+  adminFirebaseUid: string | null;
+  setupCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

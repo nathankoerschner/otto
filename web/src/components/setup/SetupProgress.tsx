@@ -1,16 +1,15 @@
 import { cn } from '@/lib/utils'
 import { Check } from 'lucide-react'
 
-type Step = 'workspace' | 'slack' | 'asana' | 'complete'
+type Step = 'register' | 'tokens' | 'complete'
 
 interface SetupProgressProps {
   currentStep: Step
 }
 
 const steps: { id: Step; label: string }[] = [
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'slack', label: 'Slack' },
-  { id: 'asana', label: 'Asana' },
+  { id: 'register', label: 'Register' },
+  { id: 'tokens', label: 'Integrations' },
   { id: 'complete', label: 'Complete' },
 ]
 

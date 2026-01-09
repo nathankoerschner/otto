@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { config } from './config';
 import { logger } from './utils/logger';
@@ -11,6 +12,9 @@ import { FollowUpService } from './services/follow-up.service';
 import { SchedulerService } from './services/scheduler.service';
 import { registerAsanaWebhookHandler } from './handlers/asana-webhook.handler';
 import { registerSlackEventHandlers } from './handlers/slack-event.handler';
+import { createAuthRouter } from './handlers/auth.handler';
+import { createSetupRouter } from './handlers/setup.handler';
+import { createDashboardRouter } from './handlers/dashboard.handler';
 
 async function main() {
   try {
@@ -58,6 +62,7 @@ async function main() {
         (req as { rawBody?: Buffer }).rawBody = buf;
       },
     }));
+    app.use(cookieParser());
 
     // Health check endpoint
     app.get('/health', (_req, res) => {
@@ -67,6 +72,11 @@ async function main() {
         llmProvider: config.llm.provider,
       });
     });
+
+    // Register API routes
+    app.use('/api/auth', createAuthRouter());
+    app.use('/api/setup', createSetupRouter());
+    app.use('/api/dashboard', createDashboardRouter());
 
     // Register webhook handlers
     registerAsanaWebhookHandler(app, asanaClient, slackBot, tenantManager);

@@ -154,3 +154,39 @@ BEGIN
     ALTER TABLE tasks ADD COLUMN context JSONB DEFAULT '{"keyPoints": [], "currentUnderstanding": "", "openQuestions": [], "commitmentsMade": []}';
   END IF;
 END $$;
+
+-- Add admin columns to tenants for Firebase Auth
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tenants' AND column_name='admin_email') THEN
+    ALTER TABLE tenants ADD COLUMN admin_email VARCHAR(255);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tenants' AND column_name='admin_firebase_uid') THEN
+    ALTER TABLE tenants ADD COLUMN admin_firebase_uid VARCHAR(255);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tenants' AND column_name='setup_completed') THEN
+    ALTER TABLE tenants ADD COLUMN setup_completed BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tenants' AND column_name='asana_project_id') THEN
+    ALTER TABLE tenants ADD COLUMN asana_project_id VARCHAR(255);
+  END IF;
+END $$;
+
+-- Sessions table for server-side session management
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id VARCHAR(255) NOT NULL,  -- Firebase UID
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  session_token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for session lookups
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- Note: Session cleanup should be done via cron job or scheduled task
+-- We don't create a partial index with CURRENT_TIMESTAMP as PostgreSQL
+-- requires IMMUTABLE functions in index predicates

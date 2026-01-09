@@ -1,4 +1,4 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -7,8 +7,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged,
-  User,
-  Auth,
+  type User,
+  type Auth,
 } from 'firebase/auth'
 
 // Firebase configuration from environment variables

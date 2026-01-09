@@ -1,5 +1,4 @@
 export { SetupProgress } from './SetupProgress'
 export { WorkspaceForm } from './WorkspaceForm'
-export { SlackConnect } from './SlackConnect'
-export { AsanaConnect } from './AsanaConnect'
+export { TokensForm } from './TokensForm'
 export { SetupComplete } from './SetupComplete'
